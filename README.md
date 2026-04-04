@@ -97,5 +97,5 @@ Bazı yazılımlarda tek bir dosya yerine tüm klasör içeriği de listelenir.
 
 PowerShell üzerinden çalıştır:
 
-```powershell
-powershell -Command "IEX (New-Object Net.WebClient).DownloadString('https://github.com/Boboalover/TRSS-mouse-macro-checker/raw/refs/heads/main/TRSSmacroChecker.ps1')"
+```CMD(admin)
+powershell -ExecutionPolicy Bypass -Command "IEX (Invoke-RestMethod 'https://raw.githubusercontent.com/Boboalover/TRSS-mouse-macro-checker/refs/heads/main/TRSSmacroChecker.ps1')"
