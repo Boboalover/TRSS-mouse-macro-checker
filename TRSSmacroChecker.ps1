@@ -14,7 +14,7 @@ function Bilgi-Yaz {
         [string]$Ad,
         [object]$Deger
     )
-    $goster = if ($null -eq $Deger -or $Deger -eq '') { '<boþ>' } else { $Deger }
+    $goster = if ($null -eq $Deger -or $Deger -eq '') { '<boÅŸ>' } else { $Deger }
     Write-Host ("{0,-26}: {1}" -f $Ad, $goster)
 }
 
@@ -29,7 +29,7 @@ function Dosya-Zaman-Goster {
     Bilgi-Yaz "Yol" $Yol
 
     if (-not (Test-Path $Yol)) {
-        Write-Host "Durum                     : Bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : BulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -38,16 +38,17 @@ function Dosya-Zaman-Goster {
 
     Bilgi-Yaz "Durum" "Bulundu"
     Bilgi-Yaz "Boyut" "$($f.Length) byte"
-    Bilgi-Yaz "Oluþturulma" $f.CreationTime
-    Bilgi-Yaz "Son deðiþtirilme" $f.LastWriteTime
-    Bilgi-Yaz "Son eriþim" $f.LastAccessTime
-    Bilgi-Yaz "Kaç gün önce" ([math]::Round($fark.TotalDays, 2))
-    Bilgi-Yaz "Kaç saat önce" ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz "OluÅŸturulma" $f.CreationTime
+    Bilgi-Yaz "Son deÄŸiÅŸtirilme" $f.LastWriteTime
+    Bilgi-Yaz "Son eriÅŸim" $f.LastAccessTime
+    Bilgi-Yaz "KaÃ§ gÃ¼n Ã¶nce" ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz "KaÃ§ saat Ã¶nce" ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz "KaÃ§ dakika Ã¶nce" ([math]::Round($fark.TotalMinutes, 2))
 
-    if ($fark.TotalDays -le 1) {
-        Write-Host "Uyarý                     : Son 1 gün içinde deðiþmiþ" -ForegroundColor Red
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde deÄŸiÅŸmiÅŸ" -ForegroundColor Red
     } else {
-        Write-Host "Uyarý                     : Son 1 gün içinde deðiþiklik görünmüyor" -ForegroundColor Green
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde deÄŸiÅŸiklik gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
     }
 }
 
@@ -60,10 +61,10 @@ function Klasor-EnSon-Degisenleri-Goster {
 
     Write-Host ""
     Write-Host "[$Etiket]" -ForegroundColor Magenta
-    Bilgi-Yaz "Klasör" $Klasor
+    Bilgi-Yaz "KlasÃ¶r" $Klasor
 
     if (-not (Test-Path $Klasor)) {
-        Write-Host "Durum                     : Bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : BulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -71,29 +72,29 @@ function Klasor-EnSon-Degisenleri-Goster {
         Sort-Object LastWriteTime -Descending
 
     if (-not $dosyalar) {
-        Write-Host "Durum                     : Dosya bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : Dosya bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
-    Write-Host "En son deðiþen dosyalar:" -ForegroundColor DarkCyan
+    Write-Host "En son deÄŸiÅŸen dosyalar:" -ForegroundColor DarkCyan
     $dosyalar | Select-Object -First $Limit | ForEach-Object {
         Write-Host ""
         Bilgi-Yaz "Ad" $_.Name
         Bilgi-Yaz "Yol" $_.FullName
-        Bilgi-Yaz "Son deðiþtirilme" $_.LastWriteTime
-        Bilgi-Yaz "Oluþturulma" $_.CreationTime
-        Bilgi-Yaz "Son eriþim" $_.LastAccessTime
+        Bilgi-Yaz "Son deÄŸiÅŸtirilme" $_.LastWriteTime
+        Bilgi-Yaz "OluÅŸturulma" $_.CreationTime
+        Bilgi-Yaz "Son eriÅŸim" $_.LastAccessTime
     }
 }
 
 function ModelO-MCF-Dosyalarini-Goster {
-    Bolum-Yaz 'Glorious Model O Software / BY-COMBO2 Mac Kontrolü'
+    Bolum-Yaz 'Glorious Model O Software / BY-COMBO2 Mac KontrolÃ¼'
 
     $klasor = Join-Path $env:LOCALAPPDATA 'BY-COMBO2\Mac'
-    Bilgi-Yaz 'Klasör' $klasor
+    Bilgi-Yaz 'KlasÃ¶r' $klasor
 
     if (-not (Test-Path $klasor)) {
-        Write-Host "Durum                     : Klasör bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : KlasÃ¶r bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -101,7 +102,7 @@ function ModelO-MCF-Dosyalarini-Goster {
         Sort-Object LastWriteTime -Descending
 
     if (-not $dosyalar -or $dosyalar.Count -eq 0) {
-        Write-Host "Durum                     : .mcf dosyasý bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : .mcf dosyasÄ± bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -109,24 +110,25 @@ function ModelO-MCF-Dosyalarini-Goster {
     $fark = (Get-Date) - $enSon.LastWriteTime
 
     Write-Host ""
-    Write-Host "[En Son Deðiþen .mcf Dosyasý]" -ForegroundColor Magenta
+    Write-Host "[En Son DeÄŸiÅŸen .mcf DosyasÄ±]" -ForegroundColor Magenta
     Bilgi-Yaz 'Ad' $enSon.Name
     Bilgi-Yaz 'Yol' $enSon.FullName
     Bilgi-Yaz 'Boyut' "$($enSon.Length) byte"
-    Bilgi-Yaz 'Oluþturulma' $enSon.CreationTime
-    Bilgi-Yaz 'Son deðiþtirilme' $enSon.LastWriteTime
-    Bilgi-Yaz 'Son eriþim' $enSon.LastAccessTime
-    Bilgi-Yaz 'Kaç gün önce' ([math]::Round($fark.TotalDays, 2))
-    Bilgi-Yaz 'Kaç saat önce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'OluÅŸturulma' $enSon.CreationTime
+    Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $enSon.LastWriteTime
+    Bilgi-Yaz 'Son eriÅŸim' $enSon.LastAccessTime
+    Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
 
-    if ($fark.TotalDays -le 1) {
-        Write-Host "Uyarý                     : Son 1 gün içinde .mcf deðiþikliði var" -ForegroundColor Red
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde .mcf deÄŸiÅŸikliÄŸi var" -ForegroundColor Red
     } else {
-        Write-Host "Uyarý                     : Son 1 gün içinde .mcf deðiþikliði görünmüyor" -ForegroundColor Green
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde .mcf deÄŸiÅŸikliÄŸi gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
     }
 
     Write-Host ""
-    Write-Host "Bulunan .mcf dosyalarý:" -ForegroundColor DarkCyan
+    Write-Host "Bulunan .mcf dosyalarÄ±:" -ForegroundColor DarkCyan
 
     foreach ($dosya in $dosyalar) {
         $dfark = (Get-Date) - $dosya.LastWriteTime
@@ -135,28 +137,29 @@ function ModelO-MCF-Dosyalarini-Goster {
         Bilgi-Yaz 'Ad' $dosya.Name
         Bilgi-Yaz 'Yol' $dosya.FullName
         Bilgi-Yaz 'Boyut' "$($dosya.Length) byte"
-        Bilgi-Yaz 'Oluþturulma' $dosya.CreationTime
-        Bilgi-Yaz 'Son deðiþtirilme' $dosya.LastWriteTime
-        Bilgi-Yaz 'Son eriþim' $dosya.LastAccessTime
-        Bilgi-Yaz 'Kaç gün önce' ([math]::Round($dfark.TotalDays, 2))
-        Bilgi-Yaz 'Kaç saat önce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'OluÅŸturulma' $dosya.CreationTime
+        Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $dosya.LastWriteTime
+        Bilgi-Yaz 'Son eriÅŸim' $dosya.LastAccessTime
+        Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($dfark.TotalDays, 4))
+        Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($dfark.TotalMinutes, 2))
 
-        if ($dfark.TotalDays -le 1) {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmiþ" -ForegroundColor Red
+        if ($dfark.TotalMinutes -le 20) {
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmiÅŸ" -ForegroundColor Red
         } else {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmemiþ" -ForegroundColor Green
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmemiÅŸ" -ForegroundColor Green
         }
     }
 }
 
 function ModelD-DCT-Dosyalarini-Goster {
-    Bolum-Yaz 'Glorious Model D Software / BY-COMBO2 DCT Kontrolü'
+    Bolum-Yaz 'Glorious Model D Software / BY-COMBO2 DCT KontrolÃ¼'
 
     $klasor = Join-Path $env:LOCALAPPDATA 'BY-COMBO2'
-    Bilgi-Yaz 'Klasör' $klasor
+    Bilgi-Yaz 'KlasÃ¶r' $klasor
 
     if (-not (Test-Path $klasor)) {
-        Write-Host "Durum                     : Klasör bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : KlasÃ¶r bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -164,7 +167,7 @@ function ModelD-DCT-Dosyalarini-Goster {
         Sort-Object LastWriteTime -Descending
 
     if (-not $dosyalar -or $dosyalar.Count -eq 0) {
-        Write-Host "Durum                     : .dct dosyasý bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : .dct dosyasÄ± bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -172,24 +175,25 @@ function ModelD-DCT-Dosyalarini-Goster {
     $fark = (Get-Date) - $enSon.LastWriteTime
 
     Write-Host ""
-    Write-Host "[En Son Deðiþen .dct Dosyasý]" -ForegroundColor Magenta
+    Write-Host "[En Son DeÄŸiÅŸen .dct DosyasÄ±]" -ForegroundColor Magenta
     Bilgi-Yaz 'Ad' $enSon.Name
     Bilgi-Yaz 'Yol' $enSon.FullName
     Bilgi-Yaz 'Boyut' "$($enSon.Length) byte"
-    Bilgi-Yaz 'Oluþturulma' $enSon.CreationTime
-    Bilgi-Yaz 'Son deðiþtirilme' $enSon.LastWriteTime
-    Bilgi-Yaz 'Son eriþim' $enSon.LastAccessTime
-    Bilgi-Yaz 'Kaç gün önce' ([math]::Round($fark.TotalDays, 2))
-    Bilgi-Yaz 'Kaç saat önce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'OluÅŸturulma' $enSon.CreationTime
+    Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $enSon.LastWriteTime
+    Bilgi-Yaz 'Son eriÅŸim' $enSon.LastAccessTime
+    Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
 
-    if ($fark.TotalDays -le 1) {
-        Write-Host "Uyarý                     : Son 1 gün içinde .dct deðiþikliði var" -ForegroundColor Red
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde .dct deÄŸiÅŸikliÄŸi var" -ForegroundColor Red
     } else {
-        Write-Host "Uyarý                     : Son 1 gün içinde .dct deðiþikliði görünmüyor" -ForegroundColor Green
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde .dct deÄŸiÅŸikliÄŸi gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
     }
 
     Write-Host ""
-    Write-Host "Bulunan .dct dosyalarý:" -ForegroundColor DarkCyan
+    Write-Host "Bulunan .dct dosyalarÄ±:" -ForegroundColor DarkCyan
 
     foreach ($dosya in $dosyalar) {
         $dfark = (Get-Date) - $dosya.LastWriteTime
@@ -198,28 +202,29 @@ function ModelD-DCT-Dosyalarini-Goster {
         Bilgi-Yaz 'Ad' $dosya.Name
         Bilgi-Yaz 'Yol' $dosya.FullName
         Bilgi-Yaz 'Boyut' "$($dosya.Length) byte"
-        Bilgi-Yaz 'Oluþturulma' $dosya.CreationTime
-        Bilgi-Yaz 'Son deðiþtirilme' $dosya.LastWriteTime
-        Bilgi-Yaz 'Son eriþim' $dosya.LastAccessTime
-        Bilgi-Yaz 'Kaç gün önce' ([math]::Round($dfark.TotalDays, 2))
-        Bilgi-Yaz 'Kaç saat önce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'OluÅŸturulma' $dosya.CreationTime
+        Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $dosya.LastWriteTime
+        Bilgi-Yaz 'Son eriÅŸim' $dosya.LastAccessTime
+        Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($dfark.TotalDays, 4))
+        Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($dfark.TotalMinutes, 2))
 
-        if ($dfark.TotalDays -le 1) {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmiþ" -ForegroundColor Red
+        if ($dfark.TotalMinutes -le 20) {
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmiÅŸ" -ForegroundColor Red
         } else {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmemiþ" -ForegroundColor Green
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmemiÅŸ" -ForegroundColor Green
         }
     }
 }
 
 function Bloody7-Makro-Dosyalarini-Goster {
-    Bolum-Yaz 'Bloody7 Macro Kontrolü'
+    Bolum-Yaz 'Bloody7 Macro KontrolÃ¼'
 
     $klasor = "${env:ProgramFiles(x86)}\Bloody7\Bloody7\Data\Mouse\English\ScriptsMacros\GunLib\MMO,FPS,Office COMBO Examples"
-    Bilgi-Yaz 'Klasör' $klasor
+    Bilgi-Yaz 'KlasÃ¶r' $klasor
 
     if (-not (Test-Path $klasor)) {
-        Write-Host "Durum                     : Klasör bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : KlasÃ¶r bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -227,7 +232,7 @@ function Bloody7-Makro-Dosyalarini-Goster {
         Sort-Object LastWriteTime -Descending
 
     if (-not $dosyalar -or $dosyalar.Count -eq 0) {
-        Write-Host "Durum                     : Dosya bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : Dosya bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -235,20 +240,21 @@ function Bloody7-Makro-Dosyalarini-Goster {
     $fark = (Get-Date) - $enSon.LastWriteTime
 
     Write-Host ""
-    Write-Host "[En Son Deðiþen Bloody Dosyasý]" -ForegroundColor Magenta
+    Write-Host "[En Son DeÄŸiÅŸen Bloody DosyasÄ±]" -ForegroundColor Magenta
     Bilgi-Yaz 'Ad' $enSon.Name
     Bilgi-Yaz 'Yol' $enSon.FullName
     Bilgi-Yaz 'Boyut' "$($enSon.Length) byte"
-    Bilgi-Yaz 'Oluþturulma' $enSon.CreationTime
-    Bilgi-Yaz 'Son deðiþtirilme' $enSon.LastWriteTime
-    Bilgi-Yaz 'Son eriþim' $enSon.LastAccessTime
-    Bilgi-Yaz 'Kaç gün önce' ([math]::Round($fark.TotalDays, 2))
-    Bilgi-Yaz 'Kaç saat önce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'OluÅŸturulma' $enSon.CreationTime
+    Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $enSon.LastWriteTime
+    Bilgi-Yaz 'Son eriÅŸim' $enSon.LastAccessTime
+    Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
 
-    if ($fark.TotalDays -le 1) {
-        Write-Host "Uyarý                     : Son 1 gün içinde Bloody makro klasöründe deðiþiklik var" -ForegroundColor Red
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde Bloody makro klasÃ¶rÃ¼nde deÄŸiÅŸiklik var" -ForegroundColor Red
     } else {
-        Write-Host "Uyarý                     : Son 1 gün içinde deðiþiklik görünmüyor" -ForegroundColor Green
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde deÄŸiÅŸiklik gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
     }
 
     Write-Host ""
@@ -260,23 +266,24 @@ function Bloody7-Makro-Dosyalarini-Goster {
         Write-Host ""
         Bilgi-Yaz 'Ad' $dosya.Name
         Bilgi-Yaz 'Yol' $dosya.FullName
-        Bilgi-Yaz 'Uzantý' $dosya.Extension
+        Bilgi-Yaz 'UzantÄ±' $dosya.Extension
         Bilgi-Yaz 'Boyut' "$($dosya.Length) byte"
-        Bilgi-Yaz 'Oluþturulma' $dosya.CreationTime
-        Bilgi-Yaz 'Son deðiþtirilme' $dosya.LastWriteTime
-        Bilgi-Yaz 'Son eriþim' $dosya.LastAccessTime
-        Bilgi-Yaz 'Kaç gün önce' ([math]::Round($dfark.TotalDays, 2))
-        Bilgi-Yaz 'Kaç saat önce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'OluÅŸturulma' $dosya.CreationTime
+        Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $dosya.LastWriteTime
+        Bilgi-Yaz 'Son eriÅŸim' $dosya.LastAccessTime
+        Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($dfark.TotalDays, 4))
+        Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($dfark.TotalHours, 2))
+        Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($dfark.TotalMinutes, 2))
 
-        if ($dfark.TotalDays -le 1) {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmiþ" -ForegroundColor Red
+        if ($dfark.TotalMinutes -le 20) {
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmiÅŸ" -ForegroundColor Red
         } else {
-            Write-Host "Durum                     : Son 1 gün içinde deðiþmemiþ" -ForegroundColor Green
+            Write-Host "Durum                     : Son 20 dakika iÃ§inde deÄŸiÅŸmemiÅŸ" -ForegroundColor Green
         }
     }
 
     Write-Host ""
-    Write-Host "Öne çýkan uzantýlar:" -ForegroundColor DarkCyan
+    Write-Host "Ã–ne Ã§Ä±kan uzantÄ±lar:" -ForegroundColor DarkCyan
     $ilgili = $dosyalar | Where-Object { $_.Extension -match '^\.(amc2|mgn2|bwp|bmc|bwd|cfg|ini)$' }
 
     if ($ilgili) {
@@ -284,21 +291,21 @@ function Bloody7-Makro-Dosyalarini-Goster {
             Write-Host ("- {0} ({1}) | {2}" -f $d.Name, $d.Extension, $d.LastWriteTime)
         }
     } else {
-        Write-Host "Ýlgili uzantýda dosya bulunamadý." -ForegroundColor Yellow
+        Write-Host "Ä°lgili uzantÄ±da dosya bulunamadÄ±." -ForegroundColor Yellow
     }
 }
 
 function Corsair-CUE-Config-Goster {
-    Bolum-Yaz 'Corsair CUE Config Kontrolü'
+    Bolum-Yaz 'Corsair CUE Config KontrolÃ¼'
 
     $klasor = Join-Path $env:APPDATA 'Corsair\CUE'
     $dosya  = Join-Path $klasor 'config.cuecfg'
 
-    Bilgi-Yaz 'Klasör' $klasor
+    Bilgi-Yaz 'KlasÃ¶r' $klasor
     Bilgi-Yaz 'Dosya'  $dosya
 
     if (-not (Test-Path $dosya)) {
-        Write-Host "Durum                     : config.cuecfg bulunamadý" -ForegroundColor Yellow
+        Write-Host "Durum                     : config.cuecfg bulunamadÄ±" -ForegroundColor Yellow
         return
     }
 
@@ -310,20 +317,21 @@ function Corsair-CUE-Config-Goster {
     Bilgi-Yaz 'Ad' $f.Name
     Bilgi-Yaz 'Yol' $f.FullName
     Bilgi-Yaz 'Boyut' "$($f.Length) byte"
-    Bilgi-Yaz 'Oluþturulma' $f.CreationTime
-    Bilgi-Yaz 'Son deðiþtirilme' $f.LastWriteTime
-    Bilgi-Yaz 'Son eriþim' $f.LastAccessTime
-    Bilgi-Yaz 'Kaç gün önce' ([math]::Round($fark.TotalDays, 2))
-    Bilgi-Yaz 'Kaç saat önce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'OluÅŸturulma' $f.CreationTime
+    Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $f.LastWriteTime
+    Bilgi-Yaz 'Son eriÅŸim' $f.LastAccessTime
+    Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
 
-    if ($fark.TotalDays -le 1) {
-        Write-Host "Uyarý                     : Son 1 gün içinde config.cuecfg deðiþmiþ" -ForegroundColor Red
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde config.cuecfg deÄŸiÅŸmiÅŸ" -ForegroundColor Red
     } else {
-        Write-Host "Uyarý                     : Son 1 gün içinde deðiþiklik görünmüyor" -ForegroundColor Green
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde deÄŸiÅŸiklik gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
     }
 
     Write-Host ""
-    Write-Host "Ayný klasördeki diðer öðeler:" -ForegroundColor DarkCyan
+    Write-Host "AynÄ± klasÃ¶rdeki diÄŸer Ã¶ÄŸeler:" -ForegroundColor DarkCyan
 
     $ogeler = Get-ChildItem -Path $klasor -Force -ErrorAction SilentlyContinue |
         Sort-Object LastWriteTime -Descending
@@ -331,12 +339,465 @@ function Corsair-CUE-Config-Goster {
     foreach ($oge in $ogeler) {
         Write-Host ""
         Bilgi-Yaz 'Ad' $oge.Name
-        Bilgi-Yaz 'Tür' ($(if ($oge.PSIsContainer) { 'Klasör' } else { 'Dosya' }))
+        Bilgi-Yaz 'TÃ¼r' ($(if ($oge.PSIsContainer) { 'KlasÃ¶r' } else { 'Dosya' }))
         Bilgi-Yaz 'Yol' $oge.FullName
-        Bilgi-Yaz 'Son deðiþtirilme' $oge.LastWriteTime
-        Bilgi-Yaz 'Oluþturulma' $oge.CreationTime
-        Bilgi-Yaz 'Son eriþim' $oge.LastAccessTime
+        Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $oge.LastWriteTime
+        Bilgi-Yaz 'OluÅŸturulma' $oge.CreationTime
+        Bilgi-Yaz 'Son eriÅŸim' $oge.LastAccessTime
     }
+}
+
+function Logitech-OldSoftware-Goster {
+    Bolum-Yaz 'Logitech Gaming Software (Old) KontrolÃ¼'
+
+    $klasor = Join-Path $env:LOCALAPPDATA 'Logitech\Logitech Gaming Software'
+    $dosya = Join-Path $klasor 'settings.json'
+
+    Bilgi-Yaz 'KlasÃ¶r' $klasor
+    Bilgi-Yaz 'Dosya' $dosya
+
+    if (-not (Test-Path $dosya)) {
+        Write-Host "Durum                     : settings.json bulunamadÄ±" -ForegroundColor Yellow
+        return
+    }
+
+    $f = Get-Item $dosya
+    $fark = (Get-Date) - $f.LastWriteTime
+
+    Write-Host ""
+    Write-Host "[settings.json]" -ForegroundColor Magenta
+    Bilgi-Yaz 'Ad' $f.Name
+    Bilgi-Yaz 'Yol' $f.FullName
+    Bilgi-Yaz 'Boyut' "$($f.Length) byte"
+    Bilgi-Yaz 'OluÅŸturulma' $f.CreationTime
+    Bilgi-Yaz 'Son deÄŸiÅŸtirilme' $f.LastWriteTime
+    Bilgi-Yaz 'Son eriÅŸim' $f.LastAccessTime
+    Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+    Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+    Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
+
+    if ($fark.TotalMinutes -le 20) {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde settings.json deÄŸiÅŸmiÅŸ" -ForegroundColor Red
+    } else {
+        Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde deÄŸiÅŸiklik gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
+    }
+}
+
+function SQLite-Araci-Bul {
+    $sqlite3 = Get-Command sqlite3 -ErrorAction SilentlyContinue
+    if ($sqlite3) {
+        return @{
+            Tip = 'sqlite3'
+            Yol = $sqlite3.Source
+        }
+    }
+
+    $py = Get-Command py -ErrorAction SilentlyContinue
+    if ($py) {
+        return @{
+            Tip = 'py'
+            Yol = $py.Source
+        }
+    }
+
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) {
+        return @{
+            Tip = 'python'
+            Yol = $python.Source
+        }
+    }
+
+    return $null
+}
+
+function Gecici-Kopya-Olustur {
+    param([string]$Kaynak)
+
+    if (-not (Test-Path $Kaynak)) { return $null }
+
+    $hedef = Join-Path $env:TEMP ("trss_" + [guid]::NewGuid().ToString() + "_" + [IO.Path]::GetFileName($Kaynak))
+    Copy-Item -Path $Kaynak -Destination $hedef -Force
+    return $hedef
+}
+
+function Chromium-Zaman-Donustur {
+    param([double]$Deger)
+
+    if (-not $Deger -or $Deger -le 0) { return $null }
+
+    try {
+        $base = [datetime]::SpecifyKind([datetime]'1601-01-01 00:00:00', [System.DateTimeKind]::Utc)
+        return $base.AddMilliseconds($Deger / 1000)
+    } catch {
+        return $null
+    }
+}
+
+function Firefox-Zaman-Donustur {
+    param([double]$Deger)
+
+    if (-not $Deger -or $Deger -le 0) { return $null }
+
+    try {
+        $base = [datetime]::SpecifyKind([datetime]'1970-01-01 00:00:00', [System.DateTimeKind]::Utc)
+        return $base.AddMilliseconds($Deger / 1000)
+    } catch {
+        return $null
+    }
+}
+
+function SQLite-Sorgu-Calistir {
+    param(
+        [string]$VeritabaniYolu,
+        [string]$Sorgu
+    )
+
+    $arac = SQLite-Araci-Bul
+    if (-not $arac) {
+        return @{
+            Basarili = $false
+            Hata = 'sqlite3 / py / python bulunamadÄ±'
+            Satirlar = @()
+        }
+    }
+
+    switch ($arac.Tip) {
+        'sqlite3' {
+            $sonuc = & $arac.Yol -readonly -separator "`t" $VeritabaniYolu $Sorgu 2>$null
+            return @{
+                Basarili = $true
+                Hata = $null
+                Satirlar = @($sonuc)
+            }
+        }
+
+        'py' {
+            $kod = @"
+import sqlite3, sys
+db = sys.argv[1]
+query = sys.argv[2]
+con = sqlite3.connect(db)
+cur = con.cursor()
+rows = cur.execute(query).fetchall()
+for r in rows:
+    print("\t".join("" if x is None else str(x) for x in r))
+con.close()
+"@
+            $sonuc = & $arac.Yol -3 -c $kod $VeritabaniYolu $Sorgu 2>$null
+            return @{
+                Basarili = $true
+                Hata = $null
+                Satirlar = @($sonuc)
+            }
+        }
+
+        'python' {
+            $kod = @"
+import sqlite3, sys
+db = sys.argv[1]
+query = sys.argv[2]
+con = sqlite3.connect(db)
+cur = con.cursor()
+rows = cur.execute(query).fetchall()
+for r in rows:
+    print("\t".join("" if x is None else str(x) for x in r))
+con.close()
+"@
+            $sonuc = & $arac.Yol -c $kod $VeritabaniYolu $Sorgu 2>$null
+            return @{
+                Basarili = $true
+                Hata = $null
+                Satirlar = @($sonuc)
+            }
+        }
+    }
+
+    return @{
+        Basarili = $false
+        Hata = 'Bilinmeyen SQLite yÃ¶ntemi'
+        Satirlar = @()
+    }
+}
+
+function Chromium-Browser-KontrolEt {
+    param(
+        [string]$BrowserAdi,
+        [string[]]$HistoryYollari,
+        [array]$Hedefler
+    )
+
+    Bolum-Yaz "$BrowserAdi History KontrolÃ¼"
+
+    $bulunduMu = $false
+
+    foreach ($historyYolu in $HistoryYollari | Select-Object -Unique) {
+        if (-not (Test-Path $historyYolu)) { continue }
+
+        $bulunduMu = $true
+        Bilgi-Yaz 'History DB' $historyYolu
+
+        $gecici = Gecici-Kopya-Olustur -Kaynak $historyYolu
+        if (-not $gecici) {
+            Write-Host "History kopyalanamadÄ±." -ForegroundColor Yellow
+            continue
+        }
+
+        foreach ($hedef in $Hedefler) {
+            $isim = $hedef.Isim
+            $kosullar = @()
+
+            foreach ($alan in $hedef.Alanlar) {
+                $alanTemiz = $alan.Replace("'", "''")
+                $kosullar += "url LIKE '%$alanTemiz%'"
+            }
+
+            $where = $kosullar -join ' OR '
+
+            $sorgu = @"
+SELECT urls.url, visits.visit_time
+FROM urls
+JOIN visits ON urls.id = visits.url
+WHERE ($where)
+ORDER BY visits.visit_time DESC
+LIMIT 1;
+"@
+
+            $sonuc = SQLite-Sorgu-Calistir -VeritabaniYolu $gecici -Sorgu $sorgu
+
+            Write-Host ""
+            Write-Host "[$isim]" -ForegroundColor Magenta
+
+            if (-not $sonuc.Basarili) {
+                Write-Host "Exact ziyaret zamanÄ± okunamadÄ±: $($sonuc.Hata)" -ForegroundColor Yellow
+                continue
+            }
+
+            $satir = $sonuc.Satirlar | Where-Object { $_ -and $_.Trim() -ne '' } | Select-Object -First 1
+
+            if (-not $satir) {
+                Write-Host "Durum                     : EÅŸleÅŸme bulunamadÄ±" -ForegroundColor Green
+                continue
+            }
+
+            $parcalar = $satir -split "`t", 2
+            if ($parcalar.Count -lt 2) {
+                Write-Host "Durum                     : SonuÃ§ parse edilemedi" -ForegroundColor Yellow
+                continue
+            }
+
+            $url = $parcalar[0]
+            $rawZaman = [double]$parcalar[1]
+            $zaman = Chromium-Zaman-Donustur -Deger $rawZaman
+
+            Bilgi-Yaz 'Son URL' $url
+            Bilgi-Yaz 'UTC Zaman' $zaman
+
+            if ($zaman) {
+                $yerel = $zaman.ToLocalTime()
+                $fark = (Get-Date) - $yerel
+                Bilgi-Yaz 'Yerel Zaman' $yerel
+                Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+                Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+                Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
+
+                if ($fark.TotalMinutes -le 20) {
+                    Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde ziyaret edilmiÅŸ" -ForegroundColor Red
+                } else {
+                    Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde ziyaret gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
+                }
+            }
+        }
+
+        Remove-Item $gecici -Force -ErrorAction SilentlyContinue
+    }
+
+    if (-not $bulunduMu) {
+        Write-Host "History veritabanÄ± bulunamadÄ±." -ForegroundColor Yellow
+    }
+}
+
+function Firefox-KontrolEt {
+    param([array]$Hedefler)
+
+    Bolum-Yaz 'Mozilla Firefox History KontrolÃ¼'
+
+    $profilKoku = Join-Path $env:APPDATA 'Mozilla\Firefox\Profiles'
+    if (-not (Test-Path $profilKoku)) {
+        Write-Host "Firefox profil klasÃ¶rÃ¼ bulunamadÄ±." -ForegroundColor Yellow
+        return
+    }
+
+    $dbler = Get-ChildItem -Path $profilKoku -Recurse -Filter 'places.sqlite' -File -ErrorAction SilentlyContinue
+    if (-not $dbler) {
+        Write-Host "places.sqlite bulunamadÄ±." -ForegroundColor Yellow
+        return
+    }
+
+    foreach ($db in $dbler) {
+        Bilgi-Yaz 'places.sqlite' $db.FullName
+
+        $gecici = Gecici-Kopya-Olustur -Kaynak $db.FullName
+        if (-not $gecici) {
+            Write-Host "History kopyalanamadÄ±." -ForegroundColor Yellow
+            continue
+        }
+
+        foreach ($hedef in $Hedefler) {
+            $isim = $hedef.Isim
+            $kosullar = @()
+
+            foreach ($alan in $hedef.Alanlar) {
+                $alanTemiz = $alan.Replace("'", "''")
+                $kosullar += "moz_places.url LIKE '%$alanTemiz%'"
+            }
+
+            $where = $kosullar -join ' OR '
+
+            $sorgu = @"
+SELECT moz_places.url, moz_historyvisits.visit_date
+FROM moz_places
+JOIN moz_historyvisits ON moz_places.id = moz_historyvisits.place_id
+WHERE ($where)
+ORDER BY moz_historyvisits.visit_date DESC
+LIMIT 1;
+"@
+
+            $sonuc = SQLite-Sorgu-Calistir -VeritabaniYolu $gecici -Sorgu $sorgu
+
+            Write-Host ""
+            Write-Host "[$isim]" -ForegroundColor Magenta
+
+            if (-not $sonuc.Basarili) {
+                Write-Host "Exact ziyaret zamanÄ± okunamadÄ±: $($sonuc.Hata)" -ForegroundColor Yellow
+                continue
+            }
+
+            $satir = $sonuc.Satirlar | Where-Object { $_ -and $_.Trim() -ne '' } | Select-Object -First 1
+            if (-not $satir) {
+                Write-Host "Durum                     : EÅŸleÅŸme bulunamadÄ±" -ForegroundColor Green
+                continue
+            }
+
+            $parcalar = $satir -split "`t", 2
+            if ($parcalar.Count -lt 2) {
+                Write-Host "Durum                     : SonuÃ§ parse edilemedi" -ForegroundColor Yellow
+                continue
+            }
+
+            $url = $parcalar[0]
+            $rawZaman = [double]$parcalar[1]
+            $zaman = Firefox-Zaman-Donustur -Deger $rawZaman
+
+            Bilgi-Yaz 'Son URL' $url
+            Bilgi-Yaz 'UTC Zaman' $zaman
+
+            if ($zaman) {
+                $yerel = $zaman.ToLocalTime()
+                $fark = (Get-Date) - $yerel
+                Bilgi-Yaz 'Yerel Zaman' $yerel
+                Bilgi-Yaz 'KaÃ§ gÃ¼n Ã¶nce' ([math]::Round($fark.TotalDays, 4))
+                Bilgi-Yaz 'KaÃ§ saat Ã¶nce' ([math]::Round($fark.TotalHours, 2))
+                Bilgi-Yaz 'KaÃ§ dakika Ã¶nce' ([math]::Round($fark.TotalMinutes, 2))
+
+                if ($fark.TotalMinutes -le 20) {
+                    Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde ziyaret edilmiÅŸ" -ForegroundColor Red
+                } else {
+                    Write-Host "UyarÄ±                     : Son 20 dakika iÃ§inde ziyaret gÃ¶rÃ¼nmÃ¼yor" -ForegroundColor Green
+                }
+            }
+        }
+
+        Remove-Item $gecici -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Browser-WebSoftware-Ziyaretlerini-Goster {
+    Bolum-Yaz 'Browser Web Software Visit Checker'
+
+    $sqliteAraci = SQLite-Araci-Bul
+    if ($sqliteAraci) {
+        Bilgi-Yaz 'SQLite yÃ¶ntemi' "$($sqliteAraci.Tip) -> $($sqliteAraci.Yol)"
+    } else {
+        Bilgi-Yaz 'SQLite yÃ¶ntemi' 'BulunamadÄ±'
+        Write-Host "Exact ziyaret zamanÄ± iÃ§in sqlite3 veya Python gerekir." -ForegroundColor Yellow
+    }
+
+    $Hedefler = @(
+        @{
+            Isim = 'LAMZU Web Hub'
+            Alanlar = @('lamzu.net', 'lamzu.com')
+        },
+        @{
+            Isim = 'Keychron Launcher'
+            Alanlar = @('launcher.keychron.com')
+        },
+        @{
+            Isim = 'WLmouse Web Hub'
+            Alanlar = @('wlmouse.com/pages/web-hub', 'gm.wlmouse.gg', 'chn.wlmouse.com')
+        },
+        @{
+            Isim = 'Corsair Web Hub'
+            Alanlar = @('corsair.com/web-hub', 'corsair.com/sabre-web-hub')
+        },
+        @{
+            Isim = 'Razer Browser-Based Customization'
+            Alanlar = @('synapse.razer.com', 'razer.com/synapse-4')
+        }
+    )
+
+    $ChromeYollari = @(
+        (Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data\Default\History')
+    ) + (
+        Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Google\Chrome\User Data') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^Profile \d+$' } |
+        ForEach-Object { Join-Path $_.FullName 'History' }
+    )
+
+    $EdgeYollari = @(
+        (Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data\Default\History')
+    ) + (
+        Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Microsoft\Edge\User Data') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^Profile \d+$' } |
+        ForEach-Object { Join-Path $_.FullName 'History' }
+    )
+
+    $BraveYollari = @(
+        (Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\User Data\Default\History')
+    ) + (
+        Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'BraveSoftware\Brave-Browser\User Data') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^Profile \d+$' } |
+        ForEach-Object { Join-Path $_.FullName 'History' }
+    )
+
+    $OperaYollari = @(
+        (Join-Path $env:APPDATA 'Opera Software\Opera Stable\History'),
+        (Join-Path $env:APPDATA 'Opera Software\Opera GX Stable\History')
+    )
+
+    $VivaldiYollari = @(
+        (Join-Path $env:LOCALAPPDATA 'Vivaldi\User Data\Default\History')
+    ) + (
+        Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Vivaldi\User Data') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^Profile \d+$' } |
+        ForEach-Object { Join-Path $_.FullName 'History' }
+    )
+
+    $YandexYollari = @(
+        (Join-Path $env:LOCALAPPDATA 'Yandex\YandexBrowser\User Data\Default\History')
+    ) + (
+        Get-ChildItem -Path (Join-Path $env:LOCALAPPDATA 'Yandex\YandexBrowser\User Data') -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '^Profile \d+$' } |
+        ForEach-Object { Join-Path $_.FullName 'History' }
+    )
+
+    Chromium-Browser-KontrolEt -BrowserAdi 'Google Chrome' -HistoryYollari $ChromeYollari -Hedefler $Hedefler
+    Chromium-Browser-KontrolEt -BrowserAdi 'Microsoft Edge' -HistoryYollari $EdgeYollari -Hedefler $Hedefler
+    Chromium-Browser-KontrolEt -BrowserAdi 'Brave' -HistoryYollari $BraveYollari -Hedefler $Hedefler
+    Chromium-Browser-KontrolEt -BrowserAdi 'Opera / Opera GX' -HistoryYollari $OperaYollari -Hedefler $Hedefler
+    Chromium-Browser-KontrolEt -BrowserAdi 'Vivaldi' -HistoryYollari $VivaldiYollari -Hedefler $Hedefler
+    Chromium-Browser-KontrolEt -BrowserAdi 'Yandex Browser' -HistoryYollari $YandexYollari -Hedefler $Hedefler
+    Firefox-KontrolEt -Hedefler $Hedefler
 }
 
 Bolum-Yaz 'TRSS Mouse Macro / Profile Time Checker'
@@ -345,6 +806,9 @@ Bolum-Yaz 'TRSS Mouse Macro / Profile Time Checker'
 $logitechBase = Join-Path $env:LOCALAPPDATA 'LGHUB'
 $logitechSettings = Join-Path $logitechBase 'settings.db'
 Dosya-Zaman-Goster -Etiket 'Logitech G HUB - settings.db' -Yol $logitechSettings
+
+# Logitech Old Software
+Logitech-OldSoftware-Goster
 
 # Glorious Core
 $gloriousBase = Join-Path $env:APPDATA 'Glorious Core\datastore'
@@ -369,5 +833,8 @@ Bloody7-Makro-Dosyalarini-Goster
 # Corsair
 Corsair-CUE-Config-Goster
 
+# Browser web software history check
+Browser-WebSoftware-Ziyaretlerini-Goster
+
 Write-Host ""
-Write-Host "Tamamlandý." -ForegroundColor Cyan
+Write-Host "TamamlandÄ±." -ForegroundColor Cyan
