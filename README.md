@@ -8,7 +8,8 @@ Bu araç:
 - **sadece konsola çıktı verir**
 - belirli yazılımların bilinen profil / config dosyalarına bakar
 - dosyaların **oluşturulma**, **son değiştirilme** ve **son erişim** zamanlarını gösterir
-- son **1 gün** içinde değişiklik varsa uyarı verir
+- son **20 dakika** içinde değişiklik varsa uyarı verir
+- ayrıca bazı **browser history** veritabanlarında belirli web-based software sitelerine en son ne zaman girildiğini kontrol etmeye çalışır
 
 ---
 
@@ -18,6 +19,9 @@ Bu araç:
 
 - **Logitech G HUB**
   - `AppData\Local\LGHUB\settings.db`
+
+- **Logitech Gaming Software (Old)**
+  - `AppData\Local\Logitech\Logitech Gaming Software\settings.json`
 
 - **Glorious Core**
   - `AppData\Roaming\Glorious Core\datastore\DeviceProfiles.json`
@@ -38,9 +42,29 @@ Bu araç:
 - **Corsair CUE**
   - `AppData\Roaming\Corsair\CUE\config.cuecfg`
 
-Ayrıca script içinde sonradan path eklenebilecek boş alanlar da vardır:
-- **Razer Synapse**
-- **LAMZU**
+---
+
+## Browser history kontrolü
+
+Script ayrıca bazı tarayıcıların yerel history veritabanlarında aşağıdaki web-based software sitelerini arar:
+
+- **LAMZU Web Hub**
+- **Keychron Launcher**
+- **WLmouse Web Hub**
+- **Corsair Web Hub**
+- **Razer browser-based customization / Synapse web tarafı**
+
+Kontrol edilen browserlar:
+
+- **Google Chrome**
+- **Microsoft Edge**
+- **Brave**
+- **Opera / Opera GX**
+- **Vivaldi**
+- **Yandex Browser**
+- **Mozilla Firefox**
+
+Script, bu sitelere **en son ne zaman girildiğini** göstermeye çalışır.
 
 ---
 
@@ -54,8 +78,16 @@ Script, bulduğu dosya veya klasörler için şunları yazdırır:
 - oluşturulma zamanı
 - son değiştirilme zamanı
 - son erişim zamanı
-- değişikliğin üzerinden kaç gün / saat geçtiği
-- son **1 gün** içinde değişiklik varsa uyarı
+- değişikliğin üzerinden kaç gün / saat / dakika geçtiği
+- son **20 dakika** içinde değişiklik varsa uyarı
+
+Browser history kısmında ise:
+
+- history veritabanı bulundu mu
+- hedef domain ile eşleşme bulundu mu
+- son eşleşen URL
+- en son ziyaret zamanı
+- son **20 dakika** içinde ziyaret edilmiş mi
 
 Bazı yazılımlarda tek bir dosya yerine tüm klasör içeriği de listelenir.
 
@@ -65,5 +97,5 @@ Bazı yazılımlarda tek bir dosya yerine tüm klasör içeriği de listelenir.
 
 PowerShell üzerinden çalıştır:
 
-```CMD(admin)
+```powershell
 powershell -Command "IEX (New-Object Net.WebClient).DownloadString('https://github.com/Boboalover/TRSS-mouse-macro-checker/raw/refs/heads/main/TRSSmacroChecker.ps1')"
