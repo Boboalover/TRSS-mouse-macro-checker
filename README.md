@@ -4,7 +4,6 @@ Windows üzerinde bazı popüler mouse yazılımlarının profil / macro ile ili
 
 Bu araç:
 
-- **dosya oluşturmaz**
 - **sadece konsola çıktı verir**
 - belirli yazılımların bilinen profil / config dosyalarına bakar
 - dosyaların **oluşturulma**, **son değiştirilme** ve **son erişim** zamanlarını gösterir
@@ -95,7 +94,7 @@ Bazı yazılımlarda tek bir dosya yerine tüm klasör içeriği de listelenir.
 
 ## Kullanım
 
-PowerShell üzerinden çalıştır:
+CMD üzerinden çalıştır:
 
 ```CMD(admin)
 powershell -ExecutionPolicy Bypass -Command "IEX (Invoke-RestMethod 'https://raw.githubusercontent.com/Boboalover/TRSS-mouse-macro-checker/refs/heads/main/TRSSmacroChecker.ps1')"
