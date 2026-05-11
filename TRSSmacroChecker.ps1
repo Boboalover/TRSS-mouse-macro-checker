@@ -383,6 +383,155 @@ function Logitech-OldSoftware-Goster {
     }
 }
 
+function Razer-AppEngine-Goster {
+    Bolum-Yaz 'Razer AppEngine Kontrolü'
+
+    $base = Join-Path $env:LOCALAPPDATA 'Razer\RazerAppEngine\User Data'
+    $logsKlasor = Join-Path $base 'Logs'
+    $appsIndexedDb = Join-Path $base 'Default\IndexedDB\https_apps.razer.com_0.indexeddb.leveldb'
+    $idIndexedDb   = Join-Path $base 'Default\IndexedDB\https_id.razer.com_0.indexeddb.leveldb'
+
+    Bilgi-Yaz 'Base' $base
+
+    Write-Host ""
+    Write-Host "[Razer Macro Logları]" -ForegroundColor Magenta
+    Bilgi-Yaz 'Klasör' $logsKlasor
+
+    if (Test-Path $logsKlasor) {
+        $macroLoglar = Get-ChildItem -Path $logsKlasor -Filter 'macro*.log' -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending
+
+        if ($macroLoglar) {
+            $enSonLog = $macroLoglar | Select-Object -First 1
+            $fark = (Get-Date) - $enSonLog.LastWriteTime
+
+            Bilgi-Yaz 'En son macro log' $enSonLog.Name
+            Bilgi-Yaz 'Yol' $enSonLog.FullName
+            Bilgi-Yaz 'Boyut' "$($enSonLog.Length) byte"
+            Bilgi-Yaz 'Oluşturulma' $enSonLog.CreationTime
+            Bilgi-Yaz 'Son değiştirilme' $enSonLog.LastWriteTime
+            Bilgi-Yaz 'Son erişim' $enSonLog.LastAccessTime
+            Bilgi-Yaz 'Kaç dakika önce' ([math]::Round($fark.TotalMinutes, 2))
+
+            if ($fark.TotalMinutes -le 20) {
+                Write-Host "Uyarı                     : Son 20 dakika içinde macro log değişmiş" -ForegroundColor Red
+            } else {
+                Write-Host "Uyarı                     : Son 20 dakika içinde macro log değişikliği görünmüyor" -ForegroundColor Green
+            }
+
+            Write-Host ""
+            Write-Host "Bulunan macro logları:" -ForegroundColor DarkCyan
+            foreach ($log in $macroLoglar) {
+                $lfark = (Get-Date) - $log.LastWriteTime
+                Write-Host ""
+                Bilgi-Yaz 'Ad' $log.Name
+                Bilgi-Yaz 'Yol' $log.FullName
+                Bilgi-Yaz 'Boyut' "$($log.Length) byte"
+                Bilgi-Yaz 'Son değiştirilme' $log.LastWriteTime
+                Bilgi-Yaz 'Kaç dakika önce' ([math]::Round($lfark.TotalMinutes, 2))
+            }
+        } else {
+            Write-Host "Durum                     : macro*.log bulunamadı" -ForegroundColor Yellow
+        }
+
+        Write-Host ""
+        Write-Host "En son değişen loglar:" -ForegroundColor DarkCyan
+        $sonLoglar = Get-ChildItem -Path $logsKlasor -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 10
+
+        foreach ($log in $sonLoglar) {
+            Write-Host ""
+            Bilgi-Yaz 'Ad' $log.Name
+            Bilgi-Yaz 'Yol' $log.FullName
+            Bilgi-Yaz 'Son değiştirilme' $log.LastWriteTime
+            Bilgi-Yaz 'Boyut' "$($log.Length) byte"
+        }
+    } else {
+        Write-Host "Durum                     : Logs klasörü bulunamadı" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "[Razer IndexedDB - apps.razer.com]" -ForegroundColor Magenta
+    Bilgi-Yaz 'Klasör' $appsIndexedDb
+
+    if (Test-Path $appsIndexedDb) {
+        $appsDosyalar = Get-ChildItem -Path $appsIndexedDb -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending
+
+        if ($appsDosyalar) {
+            $enSon = $appsDosyalar | Select-Object -First 1
+            $fark = (Get-Date) - $enSon.LastWriteTime
+
+            Bilgi-Yaz 'En son değişen dosya' $enSon.Name
+            Bilgi-Yaz 'Yol' $enSon.FullName
+            Bilgi-Yaz 'Boyut' "$($enSon.Length) byte"
+            Bilgi-Yaz 'Son değiştirilme' $enSon.LastWriteTime
+            Bilgi-Yaz 'Kaç dakika önce' ([math]::Round($fark.TotalMinutes, 2))
+
+            if ($fark.TotalMinutes -le 20) {
+                Write-Host "Uyarı                     : Son 20 dakika içinde apps IndexedDB değişmiş" -ForegroundColor Red
+            } else {
+                Write-Host "Uyarı                     : Son 20 dakika içinde apps IndexedDB değişikliği görünmüyor" -ForegroundColor Green
+            }
+
+            Write-Host ""
+            Write-Host "En son değişen dosyalar:" -ForegroundColor DarkCyan
+            foreach ($d in ($appsDosyalar | Select-Object -First 10)) {
+                Write-Host ""
+                Bilgi-Yaz 'Ad' $d.Name
+                Bilgi-Yaz 'Yol' $d.FullName
+                Bilgi-Yaz 'Boyut' "$($d.Length) byte"
+                Bilgi-Yaz 'Son değiştirilme' $d.LastWriteTime
+            }
+        } else {
+            Write-Host "Durum                     : Dosya bulunamadı" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Durum                     : apps IndexedDB klasörü bulunamadı" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "[Razer IndexedDB - id.razer.com]" -ForegroundColor Magenta
+    Bilgi-Yaz 'Klasör' $idIndexedDb
+
+    if (Test-Path $idIndexedDb) {
+        $idDosyalar = Get-ChildItem -Path $idIndexedDb -File -Force -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending
+
+        if ($idDosyalar) {
+            $enSon = $idDosyalar | Select-Object -First 1
+            $fark = (Get-Date) - $enSon.LastWriteTime
+
+            Bilgi-Yaz 'En son değişen dosya' $enSon.Name
+            Bilgi-Yaz 'Yol' $enSon.FullName
+            Bilgi-Yaz 'Boyut' "$($enSon.Length) byte"
+            Bilgi-Yaz 'Son değiştirilme' $enSon.LastWriteTime
+            Bilgi-Yaz 'Kaç dakika önce' ([math]::Round($fark.TotalMinutes, 2))
+
+            if ($fark.TotalMinutes -le 20) {
+                Write-Host "Uyarı                     : Son 20 dakika içinde id IndexedDB değişmiş" -ForegroundColor Red
+            } else {
+                Write-Host "Uyarı                     : Son 20 dakika içinde id IndexedDB değişikliği görünmüyor" -ForegroundColor Green
+            }
+
+            Write-Host ""
+            Write-Host "En son değişen dosyalar:" -ForegroundColor DarkCyan
+            foreach ($d in ($idDosyalar | Select-Object -First 10)) {
+                Write-Host ""
+                Bilgi-Yaz 'Ad' $d.Name
+                Bilgi-Yaz 'Yol' $d.FullName
+                Bilgi-Yaz 'Boyut' "$($d.Length) byte"
+                Bilgi-Yaz 'Son değiştirilme' $d.LastWriteTime
+            }
+        } else {
+            Write-Host "Durum                     : Dosya bulunamadı" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Durum                     : id IndexedDB klasörü bulunamadı" -ForegroundColor Yellow
+    }
+}
+
 function SQLite-Araci-Bul {
     $sqlite3 = Get-Command sqlite3 -ErrorAction SilentlyContinue
     if ($sqlite3) {
@@ -832,6 +981,9 @@ Bloody7-Makro-Dosyalarini-Goster
 
 # Corsair
 Corsair-CUE-Config-Goster
+
+# Razer AppEngine
+Razer-AppEngine-Goster
 
 # Browser web software history check
 Browser-WebSoftware-Ziyaretlerini-Goster
