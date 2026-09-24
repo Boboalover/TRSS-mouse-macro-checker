@@ -12,6 +12,7 @@
     değerlendirmeye yardımcı olan göstergelerdir.
 #>
 
+$TRSSSurum = 'v2.1 (2026-09-24)'
 $ErrorActionPreference = 'Continue'
 Set-StrictMode -Off
 
@@ -731,7 +732,7 @@ $YazilimMakroRegex = 'AutoHotkey|TinyTask|Pulover|Jitbit|Macro ?Recorder|MacroGa
 
 # ============================== Başlık =================================
 
-Bolum 'TRSS Mouse Macro Checker v2'
+Bolum "TRSS Mouse Macro Checker $TRSSSurum"
 Satir 'Tarih' (Zaman $BaslangicZamani)
 Satir 'Bilgisayar' $env:COMPUTERNAME
 Satir 'Çalıştıran kullanıcı' "$env:USERDOMAIN\$env:USERNAME"
@@ -800,9 +801,9 @@ function Klasorleri-Coz([string[]]$Altlar, [string]$KayitDeseni) {
         $kok = $parca[0]; $alt = $parca[1]
         $bazlar = @()
         switch ($kok) {
-            'Local'       { $bazlar = @($Profiller | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = (Join-Path $_.Yol 'AppData\Local') } }) }
-            'Roaming'     { $bazlar = @($Profiller | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = (Join-Path $_.Yol 'AppData\Roaming') } }) }
-            'Kullanici'   { $bazlar = @($Profiller | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = $_.Yol } }) }
+            'Local'       { $bazlar = @($script:Profiller | Where-Object { $_.Yol } | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = (Join-Path $_.Yol 'AppData\Local') } }) }
+            'Roaming'     { $bazlar = @($script:Profiller | Where-Object { $_.Yol } | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = (Join-Path $_.Yol 'AppData\Roaming') } }) }
+            'Kullanici'   { $bazlar = @($script:Profiller | Where-Object { $_.Yol } | ForEach-Object { [pscustomobject]@{ Profil = $_.Ad; Yol = $_.Yol } }) }
             'ProgramData' { $bazlar = @([pscustomobject]@{ Profil = '(sistem)'; Yol = $env:ProgramData }) }
             'ProgramFiles' {
                 $bazlar = @(@($env:ProgramFiles, ${env:ProgramFiles(x86)}, $env:ProgramW6432) | Where-Object { $_ } | Select-Object -Unique |
@@ -819,7 +820,7 @@ function Klasorleri-Coz([string[]]$Altlar, [string]$KayitDeseni) {
 
     # Farklı diske / klasöre kurulmuş olabilir: kayıt defterindeki kurulum konumu
     if ($KayitDeseni) {
-        foreach ($y in ($KuruluYazilimlar | Where-Object { $_.Ad -match $KayitDeseni })) {
+        foreach ($y in ($script:KuruluYazilimlar | Where-Object { $_.Ad -match $KayitDeseni })) {
             $konum = $y.Konum
             if (-not $konum -and $y.Ikon) {
                 try { $konum = Split-Path ($y.Ikon.Trim('"').Split(',')[0]) -Parent } catch {}
