@@ -6,20 +6,20 @@
     - NTFS USN Journal ile zaman damgası oynamasını ve silinen dosyaları yakalar
     - Tarayıcı geçmişi / indirmeler / WebHID izinleri (sqlite3 veya Python gerektirmez)
     - Bağlı mouse sayısı, sonradan takılan / çıkarılan cihazlar, şüpheli VID'ler
-    - Opsiyonel tıklama testi: yazılımla üretilmiş (injected) girdi + aralık düzenliliği analizi
+    - Mouse testi penceresi: anlık CPS + tüm tuşların tek tek kontrolü (basılan tuş çizimde yanar)
 
     ÖNEMLİ: Buradaki bulgular kesin kanıt değildir, ekran paylaşımında (SS)
     değerlendirmeye yardımcı olan göstergelerdir.
 #>
 
-$TRSSSurum = 'v2.1 (2026-09-24)'
+$TRSSSurum = 'v2.2 (2026-09-24)'
 $ErrorActionPreference = 'Continue'
 Set-StrictMode -Off
 
 # ------------------------------- Ayarlar -------------------------------
 $EsikDakika        = 20        # bu süre içindeki değişiklikler KIRMIZI
 $GunlukEsikDakika  = 24 * 60   # bu süre içindekiler SARI
-$ListeLimit        = 8         # her klasörde listelenecek en yeni dosya sayısı
+$ListeLimit        = 5         # her klasörde listelenecek en yeni dosya sayısı
 $TestSuresiSn      = 10        # tıklama testi süresi
 # -----------------------------------------------------------------------
 
@@ -116,6 +116,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -461,7 +462,7 @@ namespace TRSS2
         public int Moves;
     }
 
-    public class ClickTestForm : Form
+    public class MouseTestForm : Form
     {
         delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -477,45 +478,183 @@ namespace TRSS2
         [DllImport("user32.dll")] static extern uint GetRawInputData(IntPtr h, uint cmd, IntPtr data, ref uint size, uint hdr);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern uint GetRawInputDeviceInfo(IntPtr h, uint cmd, StringBuilder data, ref uint size);
 
-        public List<ClickEvent> ClickEvents = new List<ClickEvent>();
+        public static readonly Color Cizgi   = Color.FromArgb(62, 110, 140);
+        public static readonly Color Turuncu = Color.FromArgb(232, 96, 28);
+        public static readonly Color Yesil   = Color.FromArgb(198, 236, 208);
+        public static readonly Color YesilKoyu = Color.FromArgb(110, 196, 132);
+        public static readonly Color Zemin   = Color.FromArgb(250, 250, 250);
+
+        // Sonuclar (PowerShell okur)
+        public List<ClickEvent> ClickEvents = new List<ClickEvent>();   // CPS alanindaki sol tik olaylari
         public Dictionary<long, DeviceStat> Devices = new Dictionary<long, DeviceStat>();
         public int TotalMoves = 0;
         public int InjectedMoves = 0;
+        public int InjectedClicks = 0;
         public bool Started = false;
+        public bool Finished = false;
         public bool RawOk = false;
         public bool HookOk = false;
+        public int MaxCps = 0;
+        // 0 sol, 1 sag, 2 orta, 3 geri (X1), 4 ileri (X2), 5 tekerlek yukari, 6 tekerlek asagi, 7 egim sol, 8 egim sag
+        public int[] ButtonCounts = new int[9];
+
+        internal bool[] Pressed = new bool[9];
+        internal double[] FlashUntil = new double[9];
+        internal Stopwatch Clock = Stopwatch.StartNew();
+
+        static readonly string[] Names = { "Sol", "Sa\u011f", "Orta", "Geri", "\u0130leri", "Tekerlek yukar\u0131", "Tekerlek a\u015fa\u011f\u0131", "E\u011fim sol", "E\u011fim sa\u011f" };
 
         int durationMs;
-        int waitMs = 60000;
-        string progressFormat;
         Stopwatch sw = new Stopwatch();
-        Stopwatch waitSw = new Stopwatch();
+        List<double> downs = new List<double>();
         HookProc proc;
         IntPtr hook = IntPtr.Zero;
-        Label lbl;
+        Label lblCps, lblCpsCap, lblStats, lblArea, lblTuslar;
+        Panel area;
+        MouseDrawing drawing;
         System.Windows.Forms.Timer timer;
 
-        public ClickTestForm(int seconds, string intro, string progress)
+        public MouseTestForm(int seconds)
         {
             durationMs = seconds * 1000;
-            progressFormat = progress;
-            Text = "TRSS";
-            Width = 620; Height = 340;
-            TopMost = true;
+            Text = "TRSS Mouse Test";
+            ClientSize = new Size(920, 620);
             StartPosition = FormStartPosition.CenterScreen;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
-            BackColor = Color.FromArgb(24, 24, 28);
-            lbl = new Label();
-            lbl.Dock = DockStyle.Fill;
-            lbl.ForeColor = Color.White;
-            lbl.Font = new Font("Segoe UI", 14f);
-            lbl.TextAlign = ContentAlignment.MiddleCenter;
-            lbl.Text = intro;
-            Controls.Add(lbl);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
+            TopMost = true;
+            KeyPreview = true;
+            BackColor = Zemin;
+            Font = new Font("Segoe UI", 10f);
+
+            Label title = new Label();
+            title.Text = "MOUSE TEST";
+            title.Font = new Font("Segoe UI", 28f, FontStyle.Bold);
+            title.ForeColor = Turuncu;
+            title.AutoSize = true;
+            title.Location = new Point(18, 8);
+            Controls.Add(title);
+
+            Label sub = new Label();
+            sub.Text = "Solda h\u0131zl\u0131 t\u0131klama (CPS) testi, sa\u011fda tu\u015f kontrol\u00fc: mouse'unuzdaki t\u00fcm tu\u015flara tek tek bas\u0131n, tekerle\u011fi \u00e7evirin.";
+            sub.ForeColor = Cizgi;
+            sub.Size = new Size(890, 24);
+            sub.Location = new Point(22, 66);
+            Controls.Add(sub);
+
+            // ---- CPS testi ----
+            Header("T\u0131klama testi (CPS)", 22, 100);
+
+            lblCps = new Label();
+            lblCps.Font = new Font("Segoe UI", 56f, FontStyle.Bold);
+            lblCps.ForeColor = Turuncu;
+            lblCps.Size = new Size(440, 108);
+            lblCps.Location = new Point(14, 116);
+            lblCps.TextAlign = ContentAlignment.MiddleLeft;
+            Controls.Add(lblCps);
+
+            lblCpsCap = new Label();
+            lblCpsCap.ForeColor = Cizgi;
+            lblCpsCap.Font = new Font("Segoe UI", 12f);
+            lblCpsCap.AutoSize = true;
+            lblCpsCap.Location = new Point(24, 226);
+            Controls.Add(lblCpsCap);
+
+            lblStats = new Label();
+            lblStats.ForeColor = Cizgi;
+            lblStats.Size = new Size(450, 24);
+            lblStats.Location = new Point(24, 252);
+            Controls.Add(lblStats);
+
+            area = new Panel();
+            area.Location = new Point(22, 282);
+            area.Size = new Size(440, 244);
+            area.BackColor = Color.FromArgb(232, 241, 247);
+            area.BorderStyle = BorderStyle.FixedSingle;
+            Controls.Add(area);
+
+            lblArea = new Label();
+            lblArea.Dock = DockStyle.Fill;
+            lblArea.TextAlign = ContentAlignment.MiddleCenter;
+            lblArea.ForeColor = Cizgi;
+            lblArea.Font = new Font("Segoe UI", 14f, FontStyle.Bold);
+            area.Controls.Add(lblArea);
+
+            Button btnReset = new Button();
+            btnReset.Text = "Yeniden";
+            btnReset.Size = new Size(120, 34);
+            btnReset.Location = new Point(22, 540);
+            btnReset.Click += delegate { ResetCps(); };
+            Controls.Add(btnReset);
+
+            // ---- Tus kontrolu ----
+            Header("Tu\u015f kontrol\u00fc", 500, 100);
+
+            drawing = new MouseDrawing(this);
+            drawing.Location = new Point(490, 128);
+            drawing.Size = new Size(410, 392);
+            Controls.Add(drawing);
+
+            lblTuslar = new Label();
+            lblTuslar.ForeColor = Cizgi;
+            lblTuslar.Size = new Size(410, 48);
+            lblTuslar.Location = new Point(500, 524);
+            Controls.Add(lblTuslar);
+
+            Button btnEnd = new Button();
+            btnEnd.Text = "Bitir";
+            btnEnd.Size = new Size(120, 34);
+            btnEnd.Location = new Point(780, 576);
+            btnEnd.Click += delegate { Close(); };
+            Controls.Add(btnEnd);
+
             timer = new System.Windows.Forms.Timer();
-            timer.Interval = 50;
+            timer.Interval = 40;
             timer.Tick += OnTick;
+
+            ResetCps();
+            UpdateButtons();
+        }
+
+        Label Header(string text, int x, int y)
+        {
+            Label l = new Label();
+            l.Text = text;
+            l.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
+            l.ForeColor = Cizgi;
+            l.AutoSize = true;
+            l.Location = new Point(x, y);
+            Controls.Add(l);
+            return l;
+        }
+
+        void ResetCps()
+        {
+            ClickEvents.Clear();
+            downs.Clear();
+            Started = false;
+            Finished = false;
+            MaxCps = 0;
+            sw.Reset();
+            lblCps.Text = "0";
+            lblCpsCap.Text = "CPS (anl\u0131k)";
+            lblArea.Text = "BURAYA SOL TIKLA\n\nTest ilk t\u0131kla ba\u015flar (" + (durationMs / 1000) + " sn)";
+            UpdateStats(0, durationMs);
+        }
+
+        void UpdateStats(int n, double leftMs)
+        {
+            lblStats.Text = string.Format("En y\u00fcksek: {0} CPS      Toplam: {1} t\u0131k      Kalan: {2:0.0} sn", MaxCps, n, Math.Max(0.0, leftMs) / 1000.0);
+        }
+
+        void UpdateButtons()
+        {
+            int ok = 0;
+            List<string> eksik = new List<string>();
+            for (int i = 0; i < 9; i++) { if (ButtonCounts[i] > 0) ok++; else eksik.Add(Names[i]); }
+            string t = "Test edilen tu\u015f: " + ok + " / 9";
+            if (eksik.Count > 0) t += "\nBas\u0131lmayan: " + string.Join(", ", eksik.ToArray());
+            if (lblTuslar.Text != t) lblTuslar.Text = t;
         }
 
         protected override void OnLoad(EventArgs e)
@@ -527,7 +666,6 @@ namespace TRSS2
             proc = new HookProc(HookCb);
             hook = SetWindowsHookEx(14, proc, GetModuleHandle("user32.dll"), 0);
             HookOk = hook != IntPtr.Zero;
-            waitSw.Start();
             timer.Start();
         }
 
@@ -535,6 +673,12 @@ namespace TRSS2
         {
             base.OnShown(e);
             Activate();
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape) Close();
+            base.OnKeyDown(e);
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
@@ -549,16 +693,26 @@ namespace TRSS2
 
         void OnTick(object s, EventArgs e)
         {
-            if (!Started)
+            if (Started && !Finished)
             {
-                if (waitSw.ElapsedMilliseconds > waitMs) Close();
-                return;
+                double t = sw.Elapsed.TotalMilliseconds;
+                int live = 0;
+                foreach (double x in downs) if (x > t - 1000.0) live++;
+                if (live > MaxCps) MaxCps = live;
+                lblCps.Text = live.ToString();
+                UpdateStats(downs.Count, durationMs - t);
+                if (t >= durationMs)
+                {
+                    Finished = true;
+                    double avg = downs.Count / (durationMs / 1000.0);
+                    lblCps.Text = avg.ToString("0.0");
+                    lblCpsCap.Text = "CPS (ortalama)";
+                    lblArea.Text = "Test bitti\n\nTekrar i\u00e7in \"Yeniden\"";
+                    UpdateStats(downs.Count, 0);
+                }
             }
-            long left = durationMs - sw.ElapsedMilliseconds;
-            if (left <= 0) { Close(); return; }
-            int n = 0;
-            foreach (ClickEvent c in ClickEvents) if (c.Button == 0 && c.Down) n++;
-            lbl.Text = string.Format(progressFormat, left / 1000.0, n);
+            UpdateButtons();
+            drawing.Invalidate();
         }
 
         IntPtr HookCb(int nCode, IntPtr w, IntPtr l)
@@ -571,35 +725,21 @@ namespace TRSS2
                     MSLLHOOKSTRUCT s = (MSLLHOOKSTRUCT)Marshal.PtrToStructure(l, typeof(MSLLHOOKSTRUCT));
                     bool inj = (s.flags & 1u) != 0;
                     bool lower = (s.flags & 2u) != 0;
-                    if (msg == 0x200)
+                    int hi = (int)((s.mouseData >> 16) & 0xFFFF);
+                    short delta = unchecked((short)hi);
+                    switch (msg)
                     {
-                        if (Started) { TotalMoves++; if (inj) InjectedMoves++; }
-                    }
-                    else
-                    {
-                        int b = -1; bool down = false;
-                        switch (msg)
-                        {
-                            case 0x201: b = 0; down = true; break;
-                            case 0x202: b = 0; break;
-                            case 0x204: b = 1; down = true; break;
-                            case 0x205: b = 1; break;
-                            case 0x207: b = 2; down = true; break;
-                            case 0x208: b = 2; break;
-                            case 0x20B: b = 3; down = true; break;
-                            case 0x20C: b = 3; break;
-                        }
-                        if (b >= 0)
-                        {
-                            if (!Started && b == 0 && down) { Started = true; sw.Start(); }
-                            if (Started)
-                            {
-                                ClickEvent c = new ClickEvent();
-                                c.T = sw.Elapsed.TotalMilliseconds;
-                                c.Button = b; c.Down = down; c.Injected = inj; c.LowerIlInjected = lower;
-                                ClickEvents.Add(c);
-                            }
-                        }
+                        case 0x200: TotalMoves++; if (inj) InjectedMoves++; break;
+                        case 0x201: Btn(0, true, inj, lower); break;
+                        case 0x202: Btn(0, false, inj, lower); break;
+                        case 0x204: Btn(1, true, inj, lower); break;
+                        case 0x205: Btn(1, false, inj, lower); break;
+                        case 0x207: Btn(2, true, inj, lower); break;
+                        case 0x208: Btn(2, false, inj, lower); break;
+                        case 0x20B: Btn(hi == 2 ? 4 : 3, true, inj, lower); break;
+                        case 0x20C: Btn(hi == 2 ? 4 : 3, false, inj, lower); break;
+                        case 0x20A: Flash(delta > 0 ? 5 : 6, inj); break;
+                        case 0x20E: Flash(delta > 0 ? 8 : 7, inj); break;
                     }
                 }
             }
@@ -607,9 +747,48 @@ namespace TRSS2
             return CallNextHookEx(hook, nCode, w, l);
         }
 
+        void Btn(int i, bool down, bool inj, bool lower)
+        {
+            Pressed[i] = down;
+            if (down) { ButtonCounts[i]++; if (inj) InjectedClicks++; }
+            if (i == 0) CpsEvent(down, inj, lower);
+        }
+
+        void Flash(int i, bool inj)
+        {
+            ButtonCounts[i]++;
+            FlashUntil[i] = Clock.Elapsed.TotalMilliseconds + 180;
+            if (inj) InjectedClicks++;
+        }
+
+        void CpsEvent(bool down, bool inj, bool lower)
+        {
+            if (Finished) return;
+            if (!Started)
+            {
+                if (!down || !InArea()) return;
+                Started = true;
+                sw.Restart();
+                lblArea.Text = "T\u0131klamaya devam!";
+            }
+            double t = sw.Elapsed.TotalMilliseconds;
+            if (t > durationMs) return;
+            if (down && !InArea()) return;
+            ClickEvent c = new ClickEvent();
+            c.T = t; c.Button = 0; c.Down = down; c.Injected = inj; c.LowerIlInjected = lower;
+            ClickEvents.Add(c);
+            if (down) downs.Add(t);
+        }
+
+        bool InArea()
+        {
+            Point p = area.PointToClient(Cursor.Position);
+            return area.ClientRectangle.Contains(p);
+        }
+
         protected override void WndProc(ref Message m)
         {
-            if (m.Msg == 0x00FF && Started) HandleRaw(m.LParam);
+            if (m.Msg == 0x00FF) HandleRaw(m.LParam);
             base.WndProc(ref m);
         }
 
@@ -653,6 +832,115 @@ namespace TRSS2
             StringBuilder sb = new StringBuilder((int)n + 1);
             GetRawInputDeviceInfo(dev, 0x20000007, sb, ref n);
             return sb.ToString();
+        }
+    }
+
+    // Tus kontrolu icin mouse cizimi: basili tus turuncu, daha once basilmis tus yesil
+    public class MouseDrawing : Panel
+    {
+        MouseTestForm f;
+
+        public MouseDrawing(MouseTestForm form)
+        {
+            f = form;
+            DoubleBuffered = true;
+            BackColor = MouseTestForm.Zemin;
+        }
+
+        Color Fill(int i)
+        {
+            if (f.Pressed[i] || f.Clock.Elapsed.TotalMilliseconds < f.FlashUntil[i]) return MouseTestForm.Turuncu;
+            if (f.ButtonCounts[i] > 0) return i >= 2 ? MouseTestForm.YesilKoyu : MouseTestForm.Yesil;
+            return Color.White;
+        }
+
+        static GraphicsPath Rounded(Rectangle r, int rad)
+        {
+            GraphicsPath p = new GraphicsPath();
+            int d = rad * 2;
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        void Shape(Graphics g, Pen pen, GraphicsPath p, int i)
+        {
+            using (Brush b = new SolidBrush(Fill(i))) g.FillPath(b, p);
+            g.DrawPath(pen, p);
+        }
+
+        void Arrow(Graphics g, Pen pen, Point[] pts, int i)
+        {
+            using (Brush b = new SolidBrush(Fill(i))) g.FillPolygon(b, pts);
+            g.DrawPolygon(pen, pts);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            int bx = 140, by = 8, bw = 220, cx = bx + bw / 2, split = 170;
+
+            using (Pen pen = new Pen(MouseTestForm.Cizgi, 3f))
+            using (Pen thin = new Pen(MouseTestForm.Cizgi, 2f))
+            using (Brush textBrush = new SolidBrush(MouseTestForm.Cizgi))
+            using (Font fnt = new Font("Segoe UI", 10f, FontStyle.Bold))
+            using (StringFormat far = new StringFormat())
+            using (GraphicsPath body = new GraphicsPath())
+            {
+                far.Alignment = StringAlignment.Far;
+                far.LineAlignment = StringAlignment.Center;
+
+                body.AddArc(bx, by, bw, 200, 180, 180);
+                body.AddLine(bx + bw, by + 100, bx + bw, 280);
+                body.AddArc(bx, 180, bw, 200, 0, 180);
+                body.CloseFigure();
+
+                g.FillPath(Brushes.White, body);
+
+                using (Region sol = new Region(body))
+                {
+                    sol.Intersect(new Rectangle(bx, by, cx - bx, split - by));
+                    using (Brush b = new SolidBrush(Fill(0))) g.FillRegion(b, sol);
+                }
+                using (Region sag = new Region(body))
+                {
+                    sag.Intersect(new Rectangle(cx, by, bx + bw - cx, split - by));
+                    using (Brush b = new SolidBrush(Fill(1))) g.FillRegion(b, sag);
+                }
+                g.DrawPath(pen, body);
+                g.DrawLine(pen, cx, by, cx, split);
+                g.DrawLine(pen, bx, split, bx + bw, split);
+
+                g.DrawString("Sol", fnt, textBrush, bx + 30, 124);
+                g.DrawString("Sa\u011f", fnt, textBrush, cx + 45, 124);
+
+                // Tekerlek (orta tus)
+                Rectangle wr = new Rectangle(cx - 14, 62, 28, 60);
+                using (GraphicsPath wp = Rounded(wr, 10)) Shape(g, thin, wp, 2);
+                for (int y = wr.Y + 10; y < wr.Bottom - 6; y += 8) g.DrawLine(thin, wr.X + 6, y, wr.Right - 6, y);
+
+                // Tekerlek yukari / asagi
+                Arrow(g, thin, new Point[] { new Point(cx, 24), new Point(cx - 12, 50), new Point(cx + 12, 50) }, 5);
+                Arrow(g, thin, new Point[] { new Point(cx, 160), new Point(cx - 12, 134), new Point(cx + 12, 134) }, 6);
+
+                // Tekerlek egim sol / sag
+                Arrow(g, thin, new Point[] { new Point(cx - 42, 92), new Point(cx - 24, 80), new Point(cx - 24, 104) }, 7);
+                Arrow(g, thin, new Point[] { new Point(cx + 42, 92), new Point(cx + 24, 80), new Point(cx + 24, 104) }, 8);
+
+                // Yan tuslar
+                Rectangle ileri = new Rectangle(bx - 10, 196, 18, 44);
+                Rectangle geri  = new Rectangle(bx - 10, 248, 18, 44);
+                using (GraphicsPath p = Rounded(ileri, 7)) Shape(g, thin, p, 4);
+                using (GraphicsPath p = Rounded(geri, 7)) Shape(g, thin, p, 3);
+                g.DrawString("\u0130leri", fnt, textBrush, new RectangleF(0, ileri.Y, bx - 18, ileri.Height), far);
+                g.DrawString("Geri", fnt, textBrush, new RectangleF(0, geri.Y, bx - 18, geri.Height), far);
+            }
         }
     }
 }
@@ -967,11 +1255,11 @@ function Hedef-Kontrol($H) {
 # ========================= 4) USN Journal ==============================
 
 function Usn-Analizi {
-    Bolum '4) NTFS USN Journal (değişiklik günlüğü - zaman damgası oynansa da kayıt kalır)'
+    Bolum '4) USN Journal (dosya değişiklik günlüğü)'
     if (-not $Admin)   { Aciklama 'Yönetici yetkisi gerekiyor, atlandı.' 'Yellow'; return }
     if (-not $CsHazir) { Aciklama 'Yardımcı kod derlenemediği için atlandı.' 'Yellow'; return }
+    Aciklama 'Dosya tarihi elle değiştirilse bile bu günlükte kayıt kalır.'
 
-    # Hedef klasörlerin dosya referans numaraları
     $harita = @{}
     foreach ($k in $UsnKlasorleri) {
         $id = [TRSS2.Native]::GetFileId($k.Yol)
@@ -983,83 +1271,61 @@ function Usn-Analizi {
     $surucular = @(@($UsnKlasorleri | ForEach-Object { [IO.Path]::GetPathRoot($_.Yol) }) + "$env:SystemDrive\" | Where-Object { $_ } | Sort-Object -Unique)
 
     foreach ($s in $surucular) {
-        AltBaslik "Sürücü $s"
         $parents = [uint64[]]@($harita.Keys | Where-Object { [IO.Path]::GetPathRoot($harita[$_].Yol) -eq $s })
-        Aciklama 'Journal okunuyor (birkaç saniye sürebilir)...'
         $kayitlar = [TRSS2.Usn]::Read($s, $parents, $uzantilar, $icerenler)
-        if ($null -eq $kayitlar) { Aciklama ([TRSS2.Usn]::LastError) 'Yellow'; continue }
-        if ([TRSS2.Usn]::LastError) { Aciklama ([TRSS2.Usn]::LastError) 'Yellow' }
+        if ($null -eq $kayitlar) { Aciklama "Sürücü $s : $([TRSS2.Usn]::LastError)" 'Yellow'; continue }
 
-        Satir 'Okunan kayıt' ([TRSS2.Usn]::RecordCount)
-        Satir 'Journal kapsamı' ("{0} tarihinden bu yana ({1})" -f (Zaman ([TRSS2.Usn]::EarliestTime)), (Once ([TRSS2.Usn]::EarliestTime)))
-        $kapsamSaat = ((Get-Date) - [TRSS2.Usn]::EarliestTime).TotalHours
-        if ($kapsamSaat -lt 1) {
-            Bulgu 'SARI' 'USN' "Sürücü $s journal kapsamı çok kısa ($([math]::Round($kapsamSaat * 60)) dk) - journal silinmiş/sıfırlanmış olabilir"
+        $bas = [TRSS2.Usn]::EarliestTime
+        AltBaslik ("Sürücü {0}   (günlük {1} tarihinden beri)" -f $s, (Zaman $bas))
+        if (((Get-Date) - $bas).TotalHours -lt 1) {
+            Bulgu 'SARI' 'USN' "Sürücü $s günlüğü çok kısa ($([math]::Round(((Get-Date) - $bas).TotalMinutes)) dk) - silinmiş/sıfırlanmış olabilir"
         }
 
-        $hedefKayit = @($kayitlar | Where-Object { $harita.ContainsKey($_.Parent) })
+        $hedefKayit = @($kayitlar | Where-Object { $harita.ContainsKey($_.Parent) -and -not $_.IsDir })
         $digerKayit = @($kayitlar | Where-Object { -not $harita.ContainsKey($_.Parent) })
 
-        # --- a) Hedef klasörlerdeki olaylar ---
-        foreach ($grup in ($hedefKayit | Group-Object { $harita[$_.Parent].Hedef })) {
-            Write-Host ""
-            Write-Host "  > $($grup.Name)" -ForegroundColor DarkCyan
-            $kayitlarG = @($grup.Group | Sort-Object Time -Descending)
-            foreach ($r in ($kayitlarG | Where-Object { -not $_.IsDir } | Select-Object -First 8)) {
-                $renk = if ($r.Silindi) { 'Yellow' } elseif (((Get-Date) - $r.Time).TotalMinutes -le $EsikDakika) { 'Red' } else { 'Gray' }
-                Write-Host ("    {0}  {1,-18} {2,-40} {3}" -f (Zaman $r.Time), (Once $r.Time), $r.Name, (Usn-Neden $r)) -ForegroundColor $renk
-            }
+        # --- Yazılım klasörleri: tek satır özet ---
+        foreach ($grup in ($hedefKayit | Group-Object { $harita[$_.Parent].Hedef } | Sort-Object Name)) {
+            $veri    = @($grup.Group | Where-Object { $_.VeriDegisti -or $_.YeniAd -or $_.Olusturuldu } | Sort-Object Time -Descending)
+            $silinen = @($grup.Group | Where-Object { $_.Silindi } | Sort-Object Time -Descending)
+            $metin = if ($veri.Count) { "son yazma: $(Zaman $veri[0].Time) ($(Once $veri[0].Time)) - $($veri[0].Name)" } else { 'yazma yok' }
+            if ($silinen.Count) { $metin += "   | $($silinen.Count) silme" }
+            $yeni = $veri.Count -and ((Get-Date) - $veri[0].Time).TotalMinutes -le $EsikDakika
+            Write-Host ("  {0,-34} {1}" -f $grup.Name, $metin) -ForegroundColor $(if ($yeni) { 'Red' } else { 'Gray' })
 
-            # Zaman damgası karşılaştırması
-            $veri = @($kayitlarG | Where-Object { -not $_.IsDir -and ($_.VeriDegisti -or $_.YeniAd -or $_.Olusturuldu) })
+            # Zaman damgası oynanmış mı?
             foreach ($ad in ($veri | Group-Object Name)) {
-                $sonUsn = ($ad.Group | Sort-Object Time -Descending | Select-Object -First 1)
-                $klasor = $harita[$sonUsn.Parent].Yol
-                $dosya = Join-Path $klasor $ad.Name
+                $son = $ad.Group | Select-Object -First 1
+                $dosya = Join-Path $harita[$son.Parent].Yol $ad.Name
                 if (-not (Test-Path -LiteralPath $dosya)) { continue }
                 $f = Get-Item -LiteralPath $dosya -Force
-                if (($sonUsn.Time - $f.LastWriteTime).TotalMinutes -gt 2) {
-                    Bulgu 'KIRMIZI' 'USN' ("{0}: USN'e göre içerik {1} tarihinde yazılmış ama dosya {2} gösteriyor - zaman damgası geri alınmış ya da dosya başka yerden kopyalanmış" -f $ad.Name, (Zaman $sonUsn.Time), (Zaman $f.LastWriteTime))
+                if (($son.Time - $f.LastWriteTime).TotalMinutes -gt 2) {
+                    Bulgu 'KIRMIZI' 'USN' ("{0}: günlüğe göre {1} tarihinde yazılmış ama dosya {2} gösteriyor - tarih geri alınmış ya da dosya kopyalanmış" -f $ad.Name, (Zaman $son.Time), (Zaman $f.LastWriteTime))
                 }
             }
-
-            # Yakın zamanda değişiklik (dosya zamanından bağımsız)
-            $sonVeri = $veri | Sort-Object Time -Descending | Select-Object -First 1
-            if ($sonVeri -and ((Get-Date) - $sonVeri.Time).TotalMinutes -le $EsikDakika) {
-                $sev = if ($harita[$sonVeri.Parent].SurecAcik) { 'SARI' } else { 'KIRMIZI' }
-                Bulgu $sev 'USN' "$($grup.Name): $($sonVeri.Name) son $EsikDakika dk içinde yazılmış ($(Once $sonVeri.Time))"
+            if ($yeni) {
+                $sev = if ($harita[$veri[0].Parent].SurecAcik) { 'SARI' } else { 'KIRMIZI' }
+                Bulgu $sev 'USN' "$($grup.Name): $($veri[0].Name) son $EsikDakika dk içinde yazılmış ($(Once $veri[0].Time))"
             }
-
-            $silinen = @($kayitlarG | Where-Object { $_.Silindi })
-            if ($silinen.Count) {
-                $s0 = $silinen[0]
-                [void](Yakinlik-Bulgu $s0.Time 'USN' "$($grup.Name) klasöründen dosya silinmiş: $($s0.Name)")
-            }
-            $zamanDegisimi = @($kayitlarG | Where-Object { $_.TemelBilgi -and -not $_.VeriDegisti -and -not $_.Olusturuldu -and -not $_.IsDir })
-            if ($zamanDegisimi.Count) {
-                Aciklama ("Zaman/öznitelik değişimi kaydı: {0} adet (en yenisi {1} - {2})" -f $zamanDegisimi.Count, $zamanDegisimi[0].Name, (Zaman $zamanDegisimi[0].Time)) 'DarkYellow'
-            }
+            if ($silinen.Count) { [void](Yakinlik-Bulgu $silinen[0].Time 'USN' "$($grup.Name) klasöründen dosya silinmiş: $($silinen[0].Name)") }
         }
 
-        # --- b) Hedef klasörler dışında isme/uzantıya göre eşleşenler ---
-        $onemli = @($digerKayit | Where-Object { $_.Olusturuldu -or $_.Silindi -or $_.YeniAd } | Sort-Object Time -Descending)
+        # --- Diğer konumlar: sadece oluşturma / silme, en fazla 10 satır ---
+        $onemli = @($digerKayit | Where-Object { $_.Olusturuldu -or $_.Silindi } | Sort-Object Time -Descending)
         if ($onemli.Count) {
-            Write-Host ""
-            Write-Host "  > Diğer konumlarda makro/yazılım ile ilgili oluşturma, silme, yeniden adlandırma" -ForegroundColor DarkCyan
+            Write-Host '  Diğer konumlarda makro / yazılım dosyaları (son 10):' -ForegroundColor DarkCyan
             $yolOnbellek = @{}
-            foreach ($r in ($onemli | Select-Object -First 25)) {
+            foreach ($r in ($onemli | Select-Object -First 10)) {
                 if (-not $yolOnbellek.ContainsKey($r.Parent)) { $yolOnbellek[$r.Parent] = [TRSS2.Usn]::ResolvePath($s, $r.Parent) }
                 $ust = $yolOnbellek[$r.Parent]
-                if (-not $ust) { $ust = '(klasör artık yok)' }
-                $tur = if ($r.IsDir) { '[KLASÖR] ' } else { '' }
-                $renk = if ($r.Silindi) { 'Yellow' } else { 'Gray' }
-                Write-Host ("    {0}  {1,-18} {2}{3}  <- {4}  [{5}]" -f (Zaman $r.Time), (Once $r.Time), $tur, $r.Name, $ust, (Usn-Neden $r)) -ForegroundColor $renk
+                if (-not $ust) { $ust = 'klasör artık yok' }
+                $tur = if ($r.Silindi) { 'SİLİNDİ' } else { 'OLUŞTU' }
+                Write-Host ("    {0}  {1,-8} {2}  ({3})" -f (Zaman $r.Time), $tur, $r.Name, $ust) -ForegroundColor $(if ($r.Silindi) { 'Yellow' } else { 'Gray' })
             }
-
             foreach ($r in $onemli) {
                 $ln = $r.Name.ToLowerInvariant()
                 if ($r.IsDir -and $r.Silindi -and $ln -match 'lghub|bloody|by-combo|glorious|autohotkey|xmousebutton|tinytask') {
-                    [void](Yakinlik-Bulgu $r.Time 'USN' "Yazılım klasörü silinmiş: $($r.Name) (kaldırılmış olabilir)")
+                    [void](Yakinlik-Bulgu $r.Time 'USN' "Yazılım klasörü silinmiş: $($r.Name)")
                 } elseif ($r.Olusturuldu -and $ln -match '\.(ahk2?)$|tinytask|autohotkey') {
                     [void](Yakinlik-Bulgu $r.Time 'USN' "Makro aracı / script oluşturulmuş: $($r.Name)")
                 } elseif ($r.Silindi -and $ln -match '\.(ahk2?|amc2|mgn2|bwp|bmc|mcf|dct|cuecfg|cueprofile)$|tinytask') {
@@ -1067,20 +1333,8 @@ function Usn-Analizi {
                 }
             }
         }
+        if ($hedefKayit.Count -eq 0 -and $onemli.Count -eq 0) { Aciklama 'İlgili kayıt yok.' 'Green' }
     }
-}
-
-function Usn-Neden($r) {
-    $l = @()
-    if ($r.Olusturuldu) { $l += 'oluşturma' }
-    if (($r.Reason -band 1) -ne 0) { $l += 'üzerine yazma' }
-    if (($r.Reason -band 2) -ne 0) { $l += 'genişleme' }
-    if (($r.Reason -band 4) -ne 0) { $l += 'kırpma' }
-    if ($r.Silindi) { $l += 'SİLME' }
-    if ($r.EskiAd) { $l += 'eski ad' }
-    if ($r.YeniAd) { $l += 'yeni ad' }
-    if ($r.TemelBilgi) { $l += 'zaman/öznitelik' }
-    return ($l -join ', ')
 }
 
 # =========================== 5) Tarayıcılar ============================
@@ -1415,7 +1669,7 @@ function Mouse-Kontrol {
     Aciklama 'Not: KMBox gibi cihazlar çoğu zaman gerçek bir farenin VID/PID''ini kopyalar; bu yüzden VID temiz olsa bile fiziksel mouse sayısı ve tıklama testi önemlidir.'
 }
 
-# ========================== 7) Tıklama testi ===========================
+# =========================== 7) Mouse testi ============================
 
 function Istatistik([double[]]$x) {
     if (-not $x -or $x.Count -lt 2) { return $null }
@@ -1435,107 +1689,83 @@ function Istatistik([double[]]$x) {
     }
 }
 
-function Tiklama-Testi {
-    Bolum '7) Tıklama testi (makro davranış analizi)'
+function Mouse-Testi {
+    Bolum '7) Mouse testi (CPS + tuş kontrolü)'
     if (-not $CsHazir) { Aciklama 'Yardımcı kod derlenemediği için atlandı.' 'Yellow'; return }
     if (-not [Environment]::UserInteractive) { Aciklama 'Etkileşimsiz oturum, atlandı.'; return }
 
-    Aciklama "Oyuncu açılan pencerenin içine $TestSuresiSn saniye boyunca SOL tık ile olabildiğince hızlı tıklar."
-    Aciklama 'Makro tuşu varsa (yan tuş vb.) testin ikinci yarısında ona da basması istenebilir.'
-    $cevap = Read-Host '  Tıklama testi yapılsın mı? [E/h]'
+    Aciklama "Açılan pencerede: solda $TestSuresiSn sn hızlı tıklama (anlık CPS), sağda tuş kontrolü."
+    Aciklama 'Oyuncu tüm tuşlara tek tek basar, tekerleği çevirir, sonra "Bitir"e basar.'
+    $cevap = Read-Host '  Mouse testi açılsın mı? [E/h]'
     if ($cevap -match '^\s*(h|n)') { Aciklama 'Test atlandı.'; return }
 
-    $giris = "Bu pencerenin içine SOL tık ile olabildiğince hızlı tıklayın.`n`nSüre ilk tıkla başlar ($TestSuresiSn sn)."
-    $f = New-Object TRSS2.ClickTestForm -ArgumentList $TestSuresiSn, $giris, "Kalan: {0:0.0} sn`n`nSol tık: {1}"
+    $f = New-Object TRSS2.MouseTestForm -ArgumentList $TestSuresiSn
     [void]$f.ShowDialog()
+    if (-not $f.HookOk) { Aciklama 'Mouse hook kurulamadı; test verisi eksik olabilir.' 'Yellow' }
 
-    if (-not $f.HookOk) { Aciklama 'Mouse hook kurulamadı; injected kontrolü yapılamadı.' 'Yellow' }
-    if (-not $f.RawOk)  { Aciklama 'Raw Input kaydı yapılamadı; cihaz bazlı analiz yapılamadı.' 'Yellow' }
-    if (-not $f.Started) { Aciklama 'Tıklama algılanmadı, test iptal.' 'Yellow'; $f.Dispose(); return }
-
-    $limit = $TestSuresiSn * 1000
-    $olaylar = @($f.ClickEvents | Where-Object { $_.T -le $limit })
-    $sol = @($olaylar | Where-Object { $_.Button -eq 0 } | Sort-Object T)
+    # ---------------- CPS ----------------
+    AltBaslik 'Tıklama testi (CPS)'
+    $sol   = @($f.ClickEvents | Sort-Object T)
     $downs = @($sol | Where-Object { $_.Down })
     $n = $downs.Count
+    if ($n -lt 2) {
+        Aciklama 'CPS testi yapılmadı.'
+    } else {
+        $araliklar = New-Object System.Collections.Generic.List[double]
+        for ($i = 1; $i -lt $n; $i++) { $araliklar.Add($downs[$i].T - $downs[$i - 1].T) }
+        $tutmalar = New-Object System.Collections.Generic.List[double]
+        $bekleyen = $null
+        foreach ($e in $sol) {
+            if ($e.Down) { $bekleyen = $e.T }
+            elseif ($null -ne $bekleyen) { $tutmalar.Add($e.T - $bekleyen); $bekleyen = $null }
+        }
+        $cps = ($n - 1) / (($downs[$n - 1].T - $downs[0].T) / 1000)
+        $ia = Istatistik $araliklar.ToArray()
+        $th = Istatistik $tutmalar.ToArray()
 
-    $araliklar = New-Object System.Collections.Generic.List[double]
-    for ($i = 1; $i -lt $n; $i++) { $araliklar.Add($downs[$i].T - $downs[$i - 1].T) }
+        Write-Host ("  Tıklama: {0}    Ortalama CPS: {1:0.0}    En yüksek CPS: {2}" -f $n, $cps, $f.MaxCps)
+        if ($ia -and $n -ge 20) {
+            $yorum = if ($ia.CV -lt 0.10) { 'ŞÜPHELİ - makro gibi düzenli' } elseif ($ia.CV -lt 0.15) { 'oldukça düzenli' } else { 'normal (insan gibi)' }
+            $renk  = if ($ia.CV -lt 0.10) { 'Red' } elseif ($ia.CV -lt 0.15) { 'Yellow' } else { 'Green' }
+            Write-Host ("  Düzenlilik (CV): {0:0.000}  ->  {1}" -f $ia.CV, $yorum) -ForegroundColor $renk
+        } elseif ($n -lt 20) {
+            Aciklama 'Düzenlilik analizi için en az 20 tıklama gerekir.'
+        }
 
-    $tutmalar = New-Object System.Collections.Generic.List[double]
-    $bekleyen = $null
-    foreach ($e in $sol) {
-        if ($e.Down) { $bekleyen = $e.T }
-        elseif ($null -ne $bekleyen) { $tutmalar.Add($e.T - $bekleyen); $bekleyen = $null }
+        if ($n -ge 20 -and $ia) {
+            if ($ia.CV -lt 0.10)     { Bulgu 'KIRMIZI' 'Mouse testi' ('Tıklama aralıkları insan için fazla düzenli (CV={0:0.000}) - makro olasılığı yüksek' -f $ia.CV) }
+            elseif ($ia.CV -lt 0.15) { Bulgu 'SARI' 'Mouse testi' ('Tıklama aralıkları oldukça düzenli (CV={0:0.000})' -f $ia.CV) }
+        }
+        if ($th -and $th.N -ge 20 -and $th.SS -lt 2) { Bulgu 'SARI' 'Mouse testi' ('Basılı tutma süresi neredeyse sabit (sapma {0:0.0} ms) - makro deseni olabilir' -f $th.SS) }
+        if ($cps -gt 20 -and $n -ge 20) { Bulgu 'SARI' 'Mouse testi' ('Çok yüksek CPS ({0:0.0})' -f $cps) }
+        $cokKisa = @($araliklar | Where-Object { $_ -lt 15 }).Count
+        if ($cokKisa -gt 0) { Bulgu 'SARI' 'Mouse testi' "$cokKisa tıklama arası 15 ms altında - makro ya da switch'te çift tıklama arızası olabilir" }
     }
 
-    $sure = if ($n -gt 1) { ($downs[$n - 1].T - $downs[0].T) / 1000 } else { 0 }
-    $cps = if ($sure -gt 0) { ($n - 1) / $sure } else { 0 }
-    $ia = Istatistik $araliklar.ToArray()
-    $th = Istatistik $tutmalar.ToArray()
+    # ---------------- Tuşlar ----------------
+    AltBaslik 'Tuş kontrolü'
+    $adlar = @('Sol', 'Sağ', 'Orta', 'Geri', 'İleri', 'Tekerlek yukarı', 'Tekerlek aşağı', 'Eğim sol', 'Eğim sağ')
+    $parca = for ($i = 0; $i -lt 9; $i++) {
+        $c = $f.ButtonCounts[$i]
+        if ($c -gt 0) { "$($adlar[$i]) [OK]" } else { "$($adlar[$i]) [--]" }
+    }
+    Write-Host ('  ' + (($parca[0..4]) -join '   '))
+    Write-Host ('  ' + (($parca[5..8]) -join '   '))
+    Aciklama 'Not: Bastığınız halde yanmayan tuş, mouse yazılımında klavye tuşuna / makroya atanmış olabilir. Eğim sadece destekleyen mouse''larda vardır.'
 
-    AltBaslik 'Sol tık istatistikleri'
-    Satir 'Tıklama sayısı' $n
-    Satir 'Ortalama CPS' ('{0:0.0}' -f $cps)
-    if ($ia) {
-        Satir 'Aralık ort / sapma' ('{0:0.0} ms / {1:0.0} ms' -f $ia.Ort, $ia.SS)
-        Satir 'Aralık min / max' ('{0:0.0} ms / {1:0.0} ms' -f $ia.Min, $ia.Max)
-        Satir 'Değişkenlik (CV)' ('{0:0.000}  (insan tıklamasında genelde 0.15+)' -f $ia.CV)
-    }
-    if ($th) { Satir 'Basılı tutma ort / sapma' ('{0:0.0} ms / {1:0.0} ms' -f $th.Ort, $th.SS) }
-
-    $modPay = 0
-    if ($araliklar.Count -ge 10) {
-        $mod = $araliklar | ForEach-Object { [math]::Round($_) } | Group-Object | Sort-Object Count -Descending | Select-Object -First 1
-        $modDeger = [double]$mod.Name
-        $modPay = @($araliklar | Where-Object { [math]::Abs($_ - $modDeger) -le 1 }).Count / $araliklar.Count
-        Satir 'En sık aralık (±1 ms)' ('{0} ms  (%{1:0} tıklama)' -f $modDeger, ($modPay * 100))
-    }
-    $cokKisa = @($araliklar | Where-Object { $_ -lt 15 }).Count
-    Satir '15 ms altı aralık' $cokKisa
-
-    $digerTuslar = @($olaylar | Where-Object { $_.Down -and $_.Button -ne 0 } | Group-Object Button)
-    foreach ($g in $digerTuslar) {
-        $ad = switch ([int]$g.Name) { 1 { 'Sağ tık' } 2 { 'Orta tuş' } default { 'Yan tuş (X)' } }
-        Satir $ad "$($g.Count) basış"
-    }
-
-    # --- Değerlendirme ---
-    AltBaslik 'Değerlendirme'
-    $injTik = @($olaylar | Where-Object { $_.Injected }).Count
-    if ($injTik -gt 0) {
-        Bulgu 'KIRMIZI' 'Tıklama testi' "$injTik tıklama olayı yazılımla üretilmiş (INJECTED bayrağı) - AutoHotkey / SendInput / yazılım makrosu"
-    }
-    if ($f.InjectedMoves -gt 0) {
-        Bulgu 'KIRMIZI' 'Tıklama testi' "$($f.InjectedMoves) / $($f.TotalMoves) mouse hareketi yazılımla üretilmiş (INJECTED)"
-    }
-    if ($n -ge 20 -and $ia) {
-        if ($ia.CV -lt 0.10) { Bulgu 'KIRMIZI' 'Tıklama testi' ('Tıklama aralıkları insan için fazla düzenli (CV={0:0.000}) - makro olasılığı yüksek' -f $ia.CV) }
-        elseif ($ia.CV -lt 0.15) { Bulgu 'SARI' 'Tıklama testi' ('Tıklama aralıkları oldukça düzenli (CV={0:0.000})' -f $ia.CV) }
-        if ($modPay -gt 0.5) { Bulgu 'SARI' 'Tıklama testi' ('Tıklamaların %{0:0}''ı aynı aralıkta (±1 ms) - sabit gecikmeli makro deseni' -f ($modPay * 100)) }
-    }
-    if ($th -and $th.N -ge 20 -and $th.SS -lt 2) {
-        Bulgu 'SARI' 'Tıklama testi' ('Basılı tutma süresi neredeyse sabit (sapma {0:0.0} ms) - makro deseni olabilir' -f $th.SS)
-    }
-    if ($cps -gt 20 -and $n -ge 20) { Bulgu 'SARI' 'Tıklama testi' ('Çok yüksek CPS ({0:0.0})' -f $cps) }
-    if ($cokKisa -gt 0) { Bulgu 'SARI' 'Tıklama testi' "$cokKisa tıklama arası 15 ms altında - makro ya da switch'te çift tıklama arızası olabilir" }
-
-    # --- Cihaz bazlı (Raw Input) ---
-    AltBaslik 'Test sırasında girdi gönderen cihazlar (Raw Input)'
+    # ---------------- Yazılımla üretilen girdi / ikinci cihaz ----------------
+    if ($f.InjectedClicks -gt 0) { Bulgu 'KIRMIZI' 'Mouse testi' "$($f.InjectedClicks) tıklama yazılımla üretilmiş (INJECTED) - AutoHotkey / yazılım makrosu" }
+    if ($f.InjectedMoves -gt 0)  { Bulgu 'KIRMIZI' 'Mouse testi' "$($f.InjectedMoves) mouse hareketi yazılımla üretilmiş (INJECTED)" }
     $cihazlar = @($f.Devices.Values)
-    if ($cihazlar.Count -eq 0) { Aciklama 'Raw Input verisi yok.' }
-    foreach ($c in $cihazlar) {
-        $ad = if ($c.Name) { $c.Name } else { '(cihazsız - yazılımla üretilmiş girdi)' }
-        Write-Host ("  {0,-12} tık: {1,-5} hareket: {2,-6} {3}" -f $c.Handle, $c.Clicks, $c.Moves, $ad)
-    }
     if (@($cihazlar | Where-Object { $_.Handle -eq '0x0' -and ($_.Clicks + $_.Moves) -gt 0 }).Count) {
-        Bulgu 'KIRMIZI' 'Tıklama testi' 'Fiziksel bir cihaza ait olmayan (hDevice=0) mouse girdisi alındı - yazılımla üretilmiş girdi'
+        Bulgu 'KIRMIZI' 'Mouse testi' 'Fiziksel bir cihaza ait olmayan mouse girdisi alındı - yazılımla üretilmiş girdi'
     }
     $aktif = @($cihazlar | Where-Object { $_.Handle -ne '0x0' -and ($_.Clicks -gt 0 -or $_.Moves -gt 20) })
+    Satir 'Girdi gönderen cihaz' $aktif.Count $(if ($aktif.Count -gt 1) { 'Yellow' } else { 'Gray' })
     if ($aktif.Count -gt 1) {
-        Bulgu 'SARI' 'Tıklama testi' "Test sırasında $($aktif.Count) farklı fiziksel cihazdan mouse girdisi geldi - ikinci cihaz (KMBox/Arduino) olabilir"
+        foreach ($c in $aktif) { Aciklama ("- {0}  (tık {1}, hareket {2})" -f $c.Name, $c.Clicks, $c.Moves) }
+        Bulgu 'SARI' 'Mouse testi' "Test sırasında $($aktif.Count) farklı cihazdan mouse girdisi geldi - ikinci cihaz (KMBox/Arduino) olabilir"
     }
-    Aciklama 'Not: Farenin kendi hafızasındaki (onboard) makrolar INJECTED görünmez; onları ancak aralık/tutma düzenliliği ele verir.'
     $f.Dispose()
 }
 
@@ -1551,7 +1781,7 @@ foreach ($h in $Hedefler) { Hedef-Kontrol $h }
 Usn-Analizi
 Tarayici-Kontrol
 Mouse-Kontrol
-Tiklama-Testi
+Mouse-Testi
 
 # =============================== Özet ==================================
 
