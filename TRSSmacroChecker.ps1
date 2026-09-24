@@ -1262,8 +1262,9 @@ function Tarayici-Kontrol {
     $herhangi = $false
     foreach ($c in $ChromiumKokleri) {
         foreach ($kok in @(Klasorleri-Coz @($c.Alt) $null)) {
-            $profiller = @($kok.Yol) + @(Get-ChildItem -LiteralPath $kok.Yol -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
-            foreach ($p in $profiller) {
+            # DİKKAT: $Profiller ile aynı ad kullanılmamalı (PowerShell değişken adları büyük/küçük harf duyarsız)
+            $tarayiciProfilleri = @($kok.Yol) + @(Get-ChildItem -LiteralPath $kok.Yol -Directory -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+            foreach ($p in $tarayiciProfilleri) {
                 if ((Test-Path -LiteralPath (Join-Path $p 'History')) -or (Test-Path -LiteralPath (Join-Path $p 'Preferences'))) {
                     $herhangi = $true
                     Chromium-Profil-Kontrol "$($c.Ad) [$($kok.Profil)]" $p
